@@ -34,6 +34,17 @@ function SidePanel() {
   const [db, setDb] = useState(null);
   const [totalReviews, setTotalReviews] = useState();
   const  [reviewerTotalReviewCount, setReviewerTotalReviewCount] = useState(null);
+  // The logged-in user's own avatar, shared across Header, the review list, and
+  // the add-review flow so a new upload in ProfilePage reflects everywhere at
+  // once instead of only after those components independently refetch.
+  const [myProfileImage, setMyProfileImage] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("LoginUserData") || "null");
+      return stored?.profile_image || null;
+    } catch {
+      return null;
+    }
+  });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -170,6 +181,7 @@ function SidePanel() {
           reviews={reviews}
           totalReviews={totalReviews}
           reviewerTotalReviewCount={reviewerTotalReviewCount}
+          myProfileImage={myProfileImage}
         />
         <Routes>
           <Route path="/" element={<GetStartedPage />} />
@@ -206,6 +218,7 @@ function SidePanel() {
                 reviewerTotalReviewCount={reviewerTotalReviewCount}
                 setReviewerTotalReviewCount={setReviewerTotalReviewCount}
                 fetchTotalReviewCount={fetchTotalReviewCount}
+                myProfileImage={myProfileImage}
               />
             }
           />
@@ -217,7 +230,13 @@ function SidePanel() {
           />
           <Route
             path="/profile"
-            element={<ProfilePage handleEditProfile={handleEditProfile} reviewerTotalReviewCount={reviewerTotalReviewCount} />}
+            element={
+              <ProfilePage
+                handleEditProfile={handleEditProfile}
+                reviewerTotalReviewCount={reviewerTotalReviewCount}
+                setMyProfileImage={setMyProfileImage}
+              />
+            }
           />
           <Route path="/my-reviews" element={<MyReviews />} />
           <Route path="/personal-information" element={<PersonalInformation />} />

@@ -50,7 +50,8 @@ export default function ReviewsList({
   fetchTotalReviewCount,
   setReviewerTotalReviewCount,
   setExtraData,
-  setLoadingApiResponse
+  setLoadingApiResponse,
+  myProfileImage
 }) {
   const [selectedReviewId, setSelectedReviewId] = useState(null);
   const [selectedReplyId, setSelectedReplyId] = useState(null);
@@ -558,7 +559,18 @@ export default function ReviewsList({
                     <div className="flex gap-2 w-[calc(100%-45px)]">
                       <div className="overflow-hidden rounded-full h-7 w-7">
                         <img
-                          src={review.is_anon == 1 ? UserProfile : `${API_BASE_URL}/uploads/profile/${review.reviewer_profile_img}`}
+                          src={
+                            review.is_anon == 1
+                              ? UserProfile
+                              : // Prefer the freshly-known local avatar for the viewer's own
+                                // reviews so a just-uploaded photo shows immediately, instead
+                                // of waiting on this review's server-cached reviewer_profile_img.
+                              contactId == review.reviewer_id && myProfileImage
+                              ? `${API_BASE_URL}/uploads/profile/${myProfileImage}`
+                              : review.reviewer_profile_img
+                              ? `${API_BASE_URL}/uploads/profile/${review.reviewer_profile_img}`
+                              : UserProfile
+                          }
                           className=" object-cover h-full w-full"
                         />
                       </div>

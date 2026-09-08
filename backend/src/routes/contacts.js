@@ -1,10 +1,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const path = require('path');
+const fs = require('fs');
 const Contact = require('../models/Contact');
 const { exchangeCodeForToken, fetchUserInfo } = require('../utils/linkedin');
 const { contactDTO } = require('../utils/dto');
 
 const router = express.Router();
+const PROFILE_UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads', 'profile');
 
 // POST /admin/api/contacts/data -- LinkedIn OAuth login/signup exchange
 router.post('/data', async (req, res) => {
@@ -125,6 +128,35 @@ router.post('/update_profile', async (req, res) => {
   }
 
   res.status(200).json({ data: contactDTO(contact), message: 'Personal information updated.' });
+});
+
+// POST /admin/api/contacts/upload_profile_image (multipart field name: "profile_image", max 500KB)
+router.post('/upload_profile_image', async (req, res) => {
+  const { contact_id } = req.body;
+  if (!mongoose.Types.ObjectId.isValid(contact_id)) {
+    return res.status(404).json({ message: 'Contact not found.' });
+  }
+
+  const file = (req.files || []).find((f) => f.fieldname === 'profile_image');
+  if (!file) {
+    return res.status(400).json({ message: 'No image file provided.' });
+  }
+
+  const contact = await Contact.findById(contact_id);
+  if (!contact) {
+    fs.unlink(file.path, () => {});
+    return res.status(404).json({ message: 'Contact not found.' });
+  }
+
+  // Remove the previously uploaded image, if any, so old files don't pile up.
+  if (contact.profile_image) {
+    fs.unlink(path.join(PROFILE_UPLOADS_DIR, contact.profile_image), () => {});
+  }
+
+  contact.profile_image = file.filename;
+  await contact.save();
+
+  res.status(200).json({ data: contactDTO(contact), message: 'Profile image updated.' });
 });
 
 module.exports = router;

@@ -26,6 +26,7 @@ export default function ReviewPage({
   reviewerTotalReviewCount,
   setReviewerTotalReviewCount,
   fetchTotalReviewCount,
+  myProfileImage,
 }) {
   const ActionRef = useRef([]);
   const ReplyActionRef = useRef([]);
@@ -688,6 +689,7 @@ export default function ReviewPage({
                     setReviewerTotalReviewCount={setReviewerTotalReviewCount}
                     setExtraData={setExtraData}
                     setLoadingApiResponse={setLoadingApiResponse}
+                    myProfileImage={myProfileImage}
                   />
                 )}
               </div>

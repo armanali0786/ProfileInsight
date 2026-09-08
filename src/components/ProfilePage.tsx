@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import toast, { Toaster } from 'react-hot-toast';
 import UserIcon from '../assets/images/user.png';
+import EditFillIcon from '../assets/images/edit-fill.png';
 import closeIcon from '../assets/images/close.png';
 import UserProfile from '../assets/images/user-profile.png';
 import HalfRetingStar from '../assets/images/half-star.png';
@@ -20,8 +22,9 @@ import { AuthData, API_BASE_URL } from "../config";
 
 
 type ProfileProps = {
-    handleEditProfile: () => Promise<void>; 
+    handleEditProfile: () => Promise<void>;
     reviewerTotalReviewCount: number;
+    setMyProfileImage?: (image: string | null) => void;
   };
 
   type UserProfileData = {
@@ -35,10 +38,69 @@ type ProfileProps = {
 export default function ProfilePage({
     // setIsProfilePageOpen,
     reviewerTotalReviewCount,
-     handleEditProfile}:ProfileProps) {
+     handleEditProfile,
+     setMyProfileImage}:ProfileProps) {
     const navigate = useNavigate();
     const [userProfileData, setUserProfileData] =  useState<UserProfileData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const MAX_PROFILE_IMAGE_SIZE = 500 * 1024; // 500KB
+
+    /*-------------- Upload / Change Profile Image  ---------------*/
+    const handleProfileImageClick = () => {
+        if (!uploadingImage) fileInputRef.current?.click();
+    };
+
+    const handleProfileImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = ""; // Allow re-selecting the same file later
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            toast.error("Please select an image file.");
+            return;
+        }
+        if (file.size > MAX_PROFILE_IMAGE_SIZE) {
+            toast.error("Image is too large. Maximum allowed size is 500KB.");
+            return;
+        }
+
+        try {
+            setUploadingImage(true);
+            const userInfo = localStorage.getItem("LoginUserData");
+            const parsedInfo = JSON.parse(userInfo!);
+            const contactId = parsedInfo.contact_id;
+
+            const formData = new FormData();
+            formData.append("contact_id", contactId);
+            formData.append("profile_image", file);
+
+            const response = await axios.post(
+                `${API_BASE_URL}/admin/api/contacts/upload_profile_image`,
+                formData,
+                {
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                        authtoken: AuthData.token,
+                    },
+                }
+            );
+
+            if (response.status === 200) {
+                toast.success(response.data.message || "Profile image updated.");
+                setUserProfileData((prev) => ({ ...prev, profile_image: response.data.data.profile_image }));
+                setMyProfileImage?.(response.data.data.profile_image);
+                const updatedLoginData = { ...parsedInfo, ...response.data.data };
+                localStorage.setItem("LoginUserData", JSON.stringify(updatedLoginData));
+            }
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || "Failed to upload profile image.");
+        } finally {
+            setUploadingImage(false);
+        }
+    };
 
     /*-------------- Retrieve EditProfile Data  ---------------*/
     const handleEditProfileData = async () => {
@@ -75,6 +137,7 @@ export default function ProfilePage({
 
     return (
         <>
+            <Toaster position="top-center" reverseOrder={false} gutter={8} toastOptions={{ duration: 3000 }} />
             <div className=' flex flex-col absolute bottom-0 w-full rounded-t-[15px] min-h-screen bg-WhiteColor shadow-add-review-shadow'>
                 <div className=" flex items-center justify-between px-[20px] py-[15px] border-b border-BorderColor-15">
                     <div className=" flex items-center gap-[10px]">
@@ -93,10 +156,30 @@ export default function ProfilePage({
                 </div>
                 <div className="ScrollableContent">
                     <div className="p-[15px] mx-[-20px] items-center flex gap-[12px]">
-                        <div className=" rounded-full h-[60px] w-[60px] overflow-hidden">
-                            <img
-                                src={userProfileData?.profile_image ? `${API_BASE_URL}/uploads/profile/${userProfileData.profile_image}` : UserProfile}
-                                className=" object-cover h-full w-full"
+                        <div className="relative h-[60px] w-[60px] shrink-0">
+                            <div
+                                className="rounded-full h-[60px] w-[60px] overflow-hidden cursor-pointer"
+                                onClick={handleProfileImageClick}
+                            >
+                                <img
+                                    src={userProfileData?.profile_image ? `${API_BASE_URL}/uploads/profile/${userProfileData.profile_image}` : UserProfile}
+                                    className={`object-cover h-full w-full ${uploadingImage ? "opacity-50" : ""}`}
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleProfileImageClick}
+                                disabled={uploadingImage}
+                                className="absolute bottom-0 right-0 h-[22px] w-[22px] rounded-full bg-LinkedInBlue border-2 border-WhiteColor flex items-center justify-center"
+                            >
+                                <img src={EditFillIcon} className="h-[11px] w-[11px]" style={{ filter: "invert(1)" }} />
+                            </button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleProfileImageChange}
                             />
                         </div>
                         <div className=" flex flex-col">

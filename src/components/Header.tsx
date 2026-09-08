@@ -7,6 +7,7 @@ import LogoutIcon from "../assets/images/logout.png";
 import EditFillIcon from "../assets/images/edit-fill.png";
 import { useNavigate, useLocation } from "react-router-dom";
 import closeIcon from "../assets/images/close.png";
+import { API_BASE_URL } from "../config";
 
 type HeaderProps = {
   setIsLoggedIn: React.Dispatch<React.SetStateAction<boolean>>;
@@ -18,6 +19,7 @@ type HeaderProps = {
   setReviews: React.Dispatch<React.SetStateAction<any>>;
   totalReviews: number;
   reviewerTotalReviewCount: number;
+  myProfileImage?: string | null;
 };
 
 export default function Header({
@@ -29,7 +31,8 @@ export default function Header({
   reviews,
   setReviews,
   totalReviews,
-  reviewerTotalReviewCount
+  reviewerTotalReviewCount,
+  myProfileImage
 }: HeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -133,9 +136,9 @@ export default function Header({
           <div ref={actionRef} className="relative flex items-center">
             <button onClick={toggleDropdown}>
               <img
-                src={UserProfile}
+                src={myProfileImage ? `${API_BASE_URL}/uploads/profile/${myProfileImage}` : UserProfile}
                 alt="User Profile"
-                className="h-[26px] w-[26px]"
+                className="h-[26px] w-[26px] rounded-full object-cover"
               />
             </button>
             {isLogoutDropdownOpen && (

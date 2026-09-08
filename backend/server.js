@@ -1,5 +1,6 @@
 require('dotenv').config();
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -15,10 +16,33 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// The extension sends fields via FormData (multipart/form-data) with no actual file uploads.
-// multer with no fields configured just parses text fields into req.body and no-ops on
-// non-multipart requests (e.g. the LinkedIn exchange call, which sends JSON).
-app.use(multer().none());
+
+const PROFILE_UPLOADS_DIR = path.join(__dirname, 'uploads', 'profile');
+fs.mkdirSync(PROFILE_UPLOADS_DIR, { recursive: true });
+
+const MAX_PROFILE_IMAGE_SIZE = 500 * 1024; // 500KB
+
+// The extension sends most fields via FormData (multipart/form-data). `.any()` parses
+// both the text fields (into req.body, same as the old `.none()` behavior for every
+// existing route) and any actual files (into req.files, an array) -- used today only by
+// the profile image upload route. Files are written straight to disk via diskStorage.
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, PROFILE_UPLOADS_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname || '') || '';
+      cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+    },
+  }),
+  limits: { fileSize: MAX_PROFILE_IMAGE_SIZE },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed.'));
+    }
+    cb(null, true);
+  },
+});
+app.use(upload.any());
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -33,6 +57,15 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'Image is too large. Maximum allowed size is 500KB.' });
+    }
+    return res.status(400).json({ message: err.message });
+  }
+  if (err.message === 'Only image files are allowed.') {
+    return res.status(400).json({ message: err.message });
+  }
   console.error(err);
   res.status(500).json({ message: 'Internal server error.' });
 });
