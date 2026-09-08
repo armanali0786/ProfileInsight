@@ -126,7 +126,7 @@ export default function Header({
         <div className="flex items-center gap-2.5">
           {/* <img src={RevilLogo} alt="Revil Logo" className="w-[26px] h-[26px]" /> */}
           <div className="text-[20px] font-semibold text-WhiteColor capitalize leading-[1]">
-            Revil.App
+            ProfileInsight
           </div>
         </div>
         {isLoggedIn && (

@@ -63,7 +63,7 @@ export default function login({
           <h1 className=" text-[28px] text-BlackColor leading-[40px] mt-[8]">
             Hey, There 👋
             <br /> Sign In with{" "}
-            <span className=" uppercase font-bold">REVIL.APP</span>
+            <span className=" uppercase font-bold">ProfileInsight</span>
           </h1>
           {/* <div className="text-BlackColor-80 text-sm">Enter your email address and password to use the app</div> */}
           {/* </div> */}

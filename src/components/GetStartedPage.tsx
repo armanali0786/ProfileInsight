@@ -23,7 +23,7 @@ export default function GetStartedPage({}) {
         <div className=' flex flex-col gap-[40px]'>
           <div className=' flex flex-col gap-2'>
             <div className=' text-BlackColor text-[20px] font-semibold text-center capitalize'>Sign up to continue</div>
-            <div className='text-light-blue text-xs text-center leading-[1.5]'>Simple steps to get through then you will be able <br/>to continue to Revil.app</div>
+            <div className='text-light-blue text-xs text-center leading-[1.5]'>Simple steps to get through then you will be able <br/>to continue to ProfileInsight</div>
           </div>
         {/* SIGN IN button start  */}
         <button
