@@ -136,7 +136,7 @@ export default function ProfilePage({
                     </div> */}
                     {/* tabs start */}
                     <div className='TamsMain'>
-                        <a className='TamsItems' onClick={handleEditProfile}>
+                        <a className='TamsItems' onClick={() => navigate('/my-reviews')}>
                             <div className='flex items-center gap-2 w-[calc(100%-50px)]'
                                 >
                                 <img src={MyReviewIcon} className="h-[18px] w-[18px]"/>
@@ -147,14 +147,13 @@ export default function ProfilePage({
                                 <img src={DownArrorIcon} className="h-[15px] w-[15px] -rotate-90"/>
                             </div>
                         </a>
-                        <a className='TamsItems' onClick={handleEditProfile}>
+                        <a className='TamsItems' onClick={() => navigate('/personal-information')}>
                             <div className='flex items-center gap-2 w-[calc(100%-50px)]'
                                 >
                                 <img src={PersonalInformationIcon} className="h-[18px] w-[18px]"/>
                                 <div className='text-BlackColor text-base truncate w-[calc(100%-30px)]'>Personal Information</div>
                             </div>
                             <div className=' flex items-center gap-[10px]'>
-                                <div className='Pill'>2</div>
                                 <img src={DownArrorIcon} className="h-[15px] w-[15px] -rotate-90"/>
                             </div>
                         </a>

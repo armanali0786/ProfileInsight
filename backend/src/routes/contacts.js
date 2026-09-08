@@ -99,4 +99,32 @@ router.post('/update_account_status', async (req, res) => {
   res.status(200).json({ data: contactDTO(contact), message: 'Account status updated.' });
 });
 
+// POST /admin/api/contacts/update_profile
+router.post('/update_profile', async (req, res) => {
+  const { contact_id, firstname, lastname, email } = req.body;
+  if (!mongoose.Types.ObjectId.isValid(contact_id)) {
+    return res.status(404).json({ message: 'Contact not found.' });
+  }
+
+  const trimmedEmail = typeof email === 'string' ? email.trim() : email;
+  if (trimmedEmail !== undefined && trimmedEmail !== '') {
+    const emailTaken = await Contact.findOne({ email: trimmedEmail, _id: { $ne: contact_id } });
+    if (emailTaken) {
+      return res.status(409).json({ message: 'That email is already in use by another account.' });
+    }
+  }
+
+  const update = {};
+  if (firstname !== undefined) update.firstname = firstname;
+  if (lastname !== undefined) update.lastname = lastname;
+  if (trimmedEmail !== undefined && trimmedEmail !== '') update.email = trimmedEmail;
+
+  const contact = await Contact.findByIdAndUpdate(contact_id, update, { new: true });
+  if (!contact) {
+    return res.status(404).json({ message: 'Contact not found.' });
+  }
+
+  res.status(200).json({ data: contactDTO(contact), message: 'Personal information updated.' });
+});
+
 module.exports = router;

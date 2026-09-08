@@ -14,6 +14,8 @@ import Login from "../components/Auth/Login";
 import GetStartedPage from "../components/GetStartedPage";
 import Header from "../components/Header";
 import ProfilePage from "../components/ProfilePage";
+import MyReviews from "../components/MyReviews";
+import PersonalInformation from "../components/PersonalInformation";
 import {
   initDB,
   getTotalReviews
@@ -217,6 +219,8 @@ function SidePanel() {
             path="/profile"
             element={<ProfilePage handleEditProfile={handleEditProfile} reviewerTotalReviewCount={reviewerTotalReviewCount} />}
           />
+          <Route path="/my-reviews" element={<MyReviews />} />
+          <Route path="/personal-information" element={<PersonalInformation />} />
         </Routes>
       </div>
     </>

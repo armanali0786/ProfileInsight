@@ -57,6 +57,24 @@ router.post('/get_reviews', async (req, res) => {
   res.status(200).json({ data, extras });
 });
 
+// POST /admin/reviews/my_reviews -- reviews the logged-in contact has written, across all profiles
+router.post('/my_reviews', async (req, res) => {
+  const { contact_id } = req.body;
+  if (!isValidId(contact_id)) return res.status(400).json({ message: 'contact_id is required.' });
+
+  const reviews = await Review.find({ reviewer_id: contact_id })
+    .populate('reviewer_id')
+    .sort({ created_at: -1 });
+
+  const applyCount = await attachReviewerReviewCounts(reviews);
+  const data = reviews.map((review) => {
+    const dto = reviewDTO({ ...review.toObject(), comments: [] }, contact_id);
+    return applyCount(dto, review);
+  });
+
+  res.status(200).json({ data });
+});
+
 // POST /admin/reviews/submit_review
 router.post('/submit_review', async (req, res) => {
   const { contact_id, profile_id, description, is_anon, rating, profile_name } = req.body;
