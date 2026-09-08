@@ -1,5 +1,3 @@
-<img width="470" height="893" alt="main-linkedin-page" src="https://github.com/user-attachments/assets/4d0d97fb-55bc-4e8c-b834-656b300b7ad9" /># ProfileInsight
-
 ProfileInsight is a Chrome extension (Manifest V3) that lets people leave and read **reviews, ratings, and comments on public LinkedIn profiles**, directly while browsing LinkedIn. It opens as a Chrome side panel, detects whichever LinkedIn profile you're currently viewing, and shows/collects community feedback about that person — with a full LinkedIn-blue themed UI that matches LinkedIn's own look and feel.
 
 ---
