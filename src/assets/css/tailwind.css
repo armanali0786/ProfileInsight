@@ -1,0 +1,222 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@keyframes jump7456 {
+    15% {
+      border-bottom-right-radius: 3px;
+    }
+  
+    25% {
+      transform: translateY(9px) rotate(22.5deg);
+    }
+  
+    50% {
+      transform: translateY(18px) scale(1, 0.9) rotate(45deg);
+      border-bottom-right-radius: 40px;
+    }
+  
+    75% {
+      transform: translateY(9px) rotate(67.5deg);
+    }
+  
+    100% {
+      transform: translateY(0) rotate(90deg);
+    }
+  }
+  
+  @keyframes shadow324 {
+    0%,
+    100% {
+      transform: scale(1, 1);
+    }
+  
+    50% {
+      transform: scale(1.2, 1);
+    }
+  }
+@layer base {
+  
+}
+@layer utilities {
+  .font-opensans {
+    @apply font-Poppins;
+  }
+}
+@layer components {
+  body.bodyMain{
+    @apply font-Poppins overflow-hidden bg-WhiteColor
+  }
+  .Main{
+    @apply h-full min-h-screen text-BlackColor flex flex-col
+  }
+  /* .Main.WithBgImg{
+    @apply bg-GetStartedBg bg-inherit bg-no-repeat bg-bottom
+  } */
+  .Header{
+    @apply flex items-center gap-10px px-[20px] py-[15px] bg-BlackColor h-[50px]
+  }
+  .ScrollableContent{
+    @apply flex flex-col flex-grow px-15px max-h-[calc(100vh-140px)] overflow-y-auto
+  }
+  .Footer{
+    @apply flex items-center text-center mt-auto text-sm justify-center gap-1 p-[20px] leading-[1]
+  }
+  .InputLabal{
+    @apply text-xs text-BlackColor-60
+  }
+  .btn{
+    @apply px-[20px] py-[20px] rounded-[40px] text-[16px] duration-300 capitalize h-[60px]
+  }
+  .btn.btn-sm{
+    @apply px-[10px] py-[5px] rounded-[5px] text-[14px] duration-300 capitalize h-[35px]
+  }
+  .btn.sign-in-btn{
+    @apply shadow-sign-in-btn-shadow hover:shadow-none bg-BlackColor text-WhiteColor hover:bg-WhiteColor duration-300 hover:text-BlackColor border-transparent hover:border-border-color border w-full font-semibold
+  }
+  .btn.premium-btn{
+    @apply bg-YellowLight text-BlackColor duration-300 border-YellowLight border w-full text-base font-semibold
+  }
+  .btn.linkedin-btn{
+    @apply border border-BorderColor-15 flex items-center gap-[15px] justify-center hover:bg-BlackColor hover:text-WhiteColor duration-300 text-sm
+  }
+  input.FromInput,
+  textarea.FromInput{
+    @apply bg-TextareaBg focus:shadow-none focus-visible:shadow-none py-[10px] px-[15px] border-transparent border w-full
+    focus:border-transparent focus:border
+    focus-visible:border-transparent focus-visible:outline-none
+    text-base resize-none font-light rounded-[5px]
+  } 
+  .OrSeparator{
+    @apply text-center relative text-sm text-BlackColor-40
+    after:absolute after:bg-BlackColor-15 after:h-[1px] after:w-[calc(50%-32px)] after:left-0 after:top-1/2
+    before:absolute before:bg-BlackColor-15 before:h-[1px] before:w-[calc(50%-32px)] before:right-0 before:top-1/2 leading-[1]
+  }
+  .RetingCardMain{
+    @apply flex flex-col
+  }
+  .RetingCard{
+    @apply px-15px py-20px flex flex-col gap-[6px] border-b border-BorderColor-15 mx-[-15px]
+  }
+
+  .RetingCard.RetingCardReply{
+    @apply p-2 ml-5 border-b-0
+  }
+  .Reting{
+    @apply w-10 h-10 duration-300
+  }
+  .Reting svg{
+    @apply h-full w-full
+  }
+  .Reting.RetingFill svg,
+  .Reting:hover svg{
+    @apply duration-300 fill-YellowLight
+  }
+  .DropDownMain{
+    @apply relative
+  }
+  .Dropdown{
+    @apply bg-WhiteColor border border-BorderColor-15 absolute top-[calc(100%+5px)] min-w-[200px] p-[5px] right-0 rounded-[5px] duration-300 delay-300 z-[2]
+  }
+  .Dropdown .DropdownItems{
+    @apply border-b border-BorderColor-15 last:border-transparent hover:border-YellowLight-20 duration-300 
+  }
+  .Dropdown .DropdownItems a{
+    @apply p-[10px] inline-flex w-full text-left justify-between hover:bg-YellowLight-20 duration-300 cursor-pointer hover:rounded-[3px]
+  }
+  .Dropdown.FilterDropdown .DropdownItems{
+    @apply p-[10px] inline-flex w-full text-left justify-between hover:bg-YellowLight-20 hover:border-YellowLight-20 duration-300 cursor-pointer hover:rounded-[3px]
+  }
+  .PaginetionButton{
+    @apply duration-300 rounded-[5px] cursor-pointer opacity-100
+    /* px-3 py-2 text-sm font-medium border border-BlackColor bg-BlackColor text-WhiteColor hover:bg-WhiteColor hover:text-BlackColor duration-300 rounded-[5px] opacity-70 cursor-pointer */
+  }
+  .PaginetionButton.disabled{
+    @apply duration-300 opacity-70 cursor-pointer
+  }
+  .PaginetionButton.active{
+    @apply opacity-100
+  }
+  .PaginetionItems{
+    @apply text-sm font-medium rounded-[5px] w-[30px] h-[30px] duration-300 hover:bg-GrayBg text-[#6B7280] text-center flex justify-center items-center
+  }
+  .PaginetionItems.active{
+    @apply bg-GrayBg duration-300 text-BlackColor border border-BorderColor-15
+  }
+  .h18w18{
+    @apply w-[18px] h-[18px]
+  }
+  .h90w90{
+    @apply w-[90px] h-[90px]
+  }
+  .loader{
+    @apply relative w-10 h-10 rounded-full bg-loader-gradient animate-loaderspin after:absolute after:top-1/2 after:left-1/2 after:transform after:-translate-x-1/2 after:-translate-y-1/2 after:w-[calc(100%-8px)] after:h-[calc(100%-8px)] after:bg-white after:rounded-full
+  }
+  .commonloader{
+    @apply relative w-6 h-6 rounded-full bg-loader-gradient animate-loaderspin after:absolute after:top-1/2 after:left-1/2 after:transform after:-translate-x-1/2 after:-translate-y-1/2 after:w-[calc(100%-8px)] after:h-[calc(100%-8px)] after:bg-white after:rounded-full
+  }
+  .MultiProfile{
+    @apply flex items-center justify-center
+  }
+  .MultiProfileItrms {
+    @apply h-[100px] w-[100px] rounded-full cursor-pointer border-[5px] border-WhiteColor overflow-hidden ml-[-18px] first:ml-0
+  }
+  .InputValidation{
+    @apply text-Danger
+  }
+  .TamsMain{
+    @apply flex flex-col mt-[15px]
+  }
+  .TamsItems{
+    @apply py-[15px] flex justify-between items-center after:absolute after:bottom-0 after:right-0 after:h-[1px] after:w-[calc(100%-28px)] after:bg-BlackColor-15 relative cursor-pointer duration-300
+  } 
+  .Pill{
+    @apply h-5 w-5 rounded-full bg-YellowLight text-BlackColor text-xs font-medium flex justify-center items-center
+  }
+  .h54w54{
+    @apply h-[54px] w-[54px]
+  }
+  .custom-Radio-box{
+    @apply absolute top-0 left-0 w-full h-full cursor-pointer opacity-0
+  }
+  .DropdownItems .RadioBox{
+    @apply w-4 h-4 border border-BorderColor-15 rounded-full
+  }
+  .DropdownItems input:checked ~ .RadioBox{
+    @apply bg-YellowLight border-transparent relative after:absolute after:top-1/2 after:left-1/2 after:-translate-x-2/4 after:-translate-y-2/4 after:w-2 after:h-2 after:rounded-full after:bg-WhiteColor
+  }
+  .custom-Check-box{
+    @apply absolute top-0 left-0 w-full h-full cursor-pointer opacity-0
+  }
+  .DropdownItems .CheckBox,
+  .CheckBoxMain .CheckBox{
+    @apply h18w18 border border-BorderColor-15 rounded-[5px]
+  }
+  .DropdownItems input:checked ~ .CheckBox,
+  .CheckBoxMain input:checked ~ .CheckBox{
+    @apply bg-YellowLight border-transparent relative after:absolute after:ml-[3px] after:mt-[5px] after:w-[10px] after:h-[5px] after:border-b-2 after:border-l-2 after:border-WhiteColor after:-rotate-45 after:text-WhiteColor
+  }
+  ::placeholder {
+    @apply opacity-100 !text-BlackColor-40 text-sm
+  }
+  
+  ::-ms-input-placeholder { /* Edge 12-18 */
+    @apply !text-BlackColor-40 text-sm
+  } 
+
+  .ReviewHeaderMain{
+    @apply  flex flex-col gap-15px pb-20px p-15px border-b border-BorderColor-15 mx-[-15px]
+  }
+  .ReviewHeader{
+    @apply flex justify-center gap-15px
+  }
+  .ReviewHeaderLeft{
+    @apply  flex flex-col gap-10px w-[calc(100%-195px)]
+  }
+  .ReviewHeaderRight{
+    @apply flex flex-col gap-7 justify-center
+  }
+}

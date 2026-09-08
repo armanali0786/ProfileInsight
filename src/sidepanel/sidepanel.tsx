@@ -1,0 +1,220 @@
+import React, { useState, useEffect } from "react";
+import {
+  Routes,
+  Route,
+  Link,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
+import { AuthData } from "../config";
+import toast, { Toaster } from 'react-hot-toast';
+import Review from "../components/Review";
+import SignUp from "../components/Auth/SignUp";
+import Login from "../components/Auth/Login";
+import GetStartedPage from "../components/GetStartedPage";
+import Header from "../components/Header";
+import ProfilePage from "../components/ProfilePage";
+import {
+  initDB,
+  getTotalReviews
+} from "../indexedDB";
+import ReviewPage from "../components/Reviews/ReviewPage";
+import Register from "../components/Auth/Register";
+import ReviewRelations from "../components/ReviewRelations";
+import SocialLogin from "../components/Auth/SocialLogin";
+import axios from "axios";
+function SidePanel() {
+  const [userData, setUserData] = useState(null);
+  const [linkedInUserId, setLinkedInUserId] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [forgotPasswordSteps, setForgotPasswordSteps] = useState(1);
+  const [reviews, setReviews] = useState([]);
+  const [db, setDb] = useState(null);
+  const [totalReviews, setTotalReviews] = useState();
+  const  [reviewerTotalReviewCount, setReviewerTotalReviewCount] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  /*------------------  IndexedDB initialized ----------------------*/
+  useEffect(() => {
+    initDB()
+      .then(() => {
+        console.log("IndexedDB initialized");
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+    const StoreUserData = localStorage.getItem("LoginUserData");
+    if (StoreUserData) {
+      setIsLoggedIn(true);
+      navigate("/reviews");
+    } else {
+      setIsLoggedIn(false);
+      navigate("/");
+    }
+  }, []);
+
+
+
+
+  /*------------------ Fetch Total Reviews Length ----------------------*/
+  const fetchAllReviews = async () => {
+    const userInfo = localStorage.getItem("LoginUserData");
+    const parsedInfo = JSON.parse(userInfo);
+    const contactId = parsedInfo.contact_id; 
+    try {
+      const database = await initDB();  
+      setDb(database); 
+      const reviewsData = await getTotalReviews(database, contactId);  
+      setTotalReviews(reviewsData.length);
+    } catch (error) {
+      console.error("Error fetching all reviews:", error);
+    }
+  };
+  useEffect(() => {
+    fetchAllReviews();
+  }, []);
+
+  /*------------------ Edit Profile Click  ----------------------*/
+  const handleEditProfile = async () => {
+    try {
+      // const userId = localStorage.getItem("logInUserId");
+      // const user = await getUser(userId);
+      // if (user) {
+      //   navigate("/signup");
+      //   setUserData(user);
+      // }
+    } catch (error) {
+      console.log("Error getting user", error);
+    }
+  };
+
+
+
+  const initializeDatabase = async () => {
+    try {
+      const database = await initDB(); // Assuming `initDB` initializes the IndexedDB
+      console.log("Database initialized:", database);
+      setDb(database);
+    } catch (error) {
+      console.error("Database initialization failed:", error);
+    }
+  };
+  useEffect(() => {
+    initializeDatabase();
+  }, [linkedInUserId]);
+
+  /*------------------ Fetch total reviews counts ----------------------*/
+  const fetchTotalReviewCount = async() => {
+    try{
+      const userInfo = localStorage.getItem("LoginUserData");
+      const parsedInfo = JSON.parse(userInfo);
+      const contactId = parsedInfo.contact_id; 
+      const formData = new FormData();
+      formData.append("contact_id", contactId);
+      const responsData = await axios.post(
+        "https://app.revil.app/admin/reviews/get_profile_public_data",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            authtoken:AuthData.token,
+          },
+        }
+      );
+      const publicProfileData = responsData.data.data;
+      if(responsData.status == 200){
+        setReviewerTotalReviewCount(publicProfileData.reviewer_total_review_count);
+      }
+
+    }catch (error) {
+      handleApiError(error.response.data)
+    }
+  };
+  
+  useEffect(()=>{
+    fetchTotalReviewCount();
+  },[linkedInUserId]);
+
+  const handleApiError = (response) => {
+    toast.error(response.message);
+  };
+
+
+  return (
+    <>
+    <Toaster
+      position="top-center"
+      reverseOrder={false}
+      gutter={8}
+      toastOptions={{
+        duration: 3000,
+      }}
+      />
+      <div className={`Main ${location.pathname == "/" ? "WithBgImg" : ""}`}>
+        <Header
+          setIsLoggedIn={setIsLoggedIn}
+          isLoggedIn={isLoggedIn}
+          setForgotPasswordSteps={setForgotPasswordSteps}
+          forgotPasswordSteps={forgotPasswordSteps}
+          userData={userData}
+          setReviews={setReviews}
+          reviews={reviews}
+          totalReviews={totalReviews}
+          reviewerTotalReviewCount={reviewerTotalReviewCount}
+        />
+        <Routes>
+          <Route path="/" element={<GetStartedPage />} />
+          {/* <Route path="/signup" element={<SignUp userData={userData}/>} /> */}
+          {/* <Route path="/signup" element={<SocialLogin />} /> */}
+          <Route
+            path="/signup"
+            element={
+              <Register setIsLoggedIn={setIsLoggedIn} isLoggedIn={isLoggedIn} fetchTotalReviewCount={fetchTotalReviewCount} />
+            }
+          />
+          {/* <Route
+            path="/login"
+            element={<Login setIsLoggedIn={setIsLoggedIn} />}
+          /> */}
+          {/* <Route
+            path="/forgot-password"
+            element={
+              <ForgetPassword
+                setForgotPasswordSteps={setForgotPasswordSteps}
+                forgotPasswordSteps={forgotPasswordSteps}
+              />
+            }
+          />
+          <Route path="/verify-otp" element={<VerifyEmail />} /> */}
+          <Route
+            path="/reviews"
+            element={
+              <ReviewPage
+                reviews={reviews}
+                setReviews={setReviews}
+                totalReviews={totalReviews}
+                fetchAllReviews={fetchAllReviews}
+                reviewerTotalReviewCount={reviewerTotalReviewCount}
+                setReviewerTotalReviewCount={setReviewerTotalReviewCount}
+                fetchTotalReviewCount={fetchTotalReviewCount}
+              />
+            }
+          />
+          <Route
+            path="/unlock-profile"
+            element={
+              <ReviewRelations reviewerTotalReviewCount={reviewerTotalReviewCount}  />
+            }
+          />
+          <Route
+            path="/profile"
+            element={<ProfilePage handleEditProfile={handleEditProfile} reviewerTotalReviewCount={reviewerTotalReviewCount} />}
+          />
+        </Routes>
+      </div>
+    </>
+  );
+}
+
+export default SidePanel;

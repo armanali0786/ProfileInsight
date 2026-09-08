@@ -1,0 +1,43 @@
+{
+  "name": "ProfileInsight",
+  "description": "ProfileInsight is an extension that lets people share insights and reviews on LinkedIn profiles",
+  "version": "1.0.13",
+  "manifest_version": 3,
+  "background": { "service_worker": "background.js" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "action": { "default_title": "Click to open panel" },
+  "icons": {
+    "16": "logo.png",
+    "48": "logo.png",
+    "128": "logo.png"
+  },
+  "action": {
+    "default_title": "ProfileInsight",
+    "default_popup": "sidepanel.html"
+  },
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://dnbafhoodicocmopiloefdapjodbfdfa.chromiumapp.org/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/in/*"],
+      "js": ["contentScript.js"],
+      "match_origin_as_fallback": false
+    }
+  ],
+  "permissions": [
+    "identity",
+    "storage",
+    "sidePanel",
+    "tabs",
+    "activeTab",
+    "scripting"
+
+  ],
+  "oauth2": {
+    "client_id": "775esqbqk51uf3",
+    "redirect_uri": "https://dnbafhoodicocmopiloefdapjodbfdfa.chromiumapp.org/linkedin-callback",
+    "scopes": ["r_liteprofile", "r_emailaddress"]
+  }
+}
