@@ -136,7 +136,7 @@ export default function AddComment({
           // onChange={handleCommentChange}
         />
         <button
-          className="ml-2 bg-black text-white p-2 rounded-md"
+          className="ml-2 bg-LinkedInBlue hover:bg-LinkedInBlue-dark text-white p-2 rounded-md duration-300"
           onClick={handleSubmit}
         >
           {editReplyIndex ? "update" : "submit"}

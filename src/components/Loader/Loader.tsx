@@ -203,7 +203,7 @@ const Loader: React.FC<LoaderProps> = ({
                   {!expandedReviewText[existingReview.reviewId] &&
                     existingReview.text.split(" ").length > 20 && (
                       <a
-                        className="cursor-pointer text-BlackColor whitespace-nowrap font-medium absolute right-0 bottom-0"
+                        className="cursor-pointer text-LinkedInBlue whitespace-nowrap font-medium absolute right-0 bottom-0"
                         onClick={() =>
                           ExpandReviewText(existingReview.reviewId)
                         }
@@ -220,7 +220,7 @@ const Loader: React.FC<LoaderProps> = ({
                     )}
                   {expandedReviewText[existingReview.reviewId] && (
                     <a
-                      className="cursor-pointer text-BlackColor whitespace-nowrap font-medium"
+                      className="cursor-pointer text-LinkedInBlue whitespace-nowrap font-medium"
                       onClick={() => ExpandReviewText(existingReview.reviewId)}
                     >
                       <span className="underline !ml-1">Read less</span>

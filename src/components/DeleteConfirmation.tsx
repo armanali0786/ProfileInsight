@@ -12,13 +12,13 @@ const DeleteConfirmation = ({ isOpen, onClose, onDelete }) => {
         <p className="text-gray-600 mb-6">Are you sure you want to delete this item?</p>
         <div className="flex justify-end space-x-4">
           <button
-            className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300"
+            className="bg-LinkedInBlue-tint text-LinkedInBlue px-4 py-2 rounded-md hover:bg-LinkedInBlue hover:text-white duration-300"
             onClick={onClose}
           >
             Cancel
           </button>
           <button
-            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+            className="bg-Danger text-white px-4 py-2 rounded-md hover:opacity-90 duration-300"
             onClick={onDelete}
           >
             Delete

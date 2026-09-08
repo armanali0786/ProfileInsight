@@ -690,7 +690,7 @@ export default function ReviewsList({
                     typeof review.review_description === "string" &&
                     review.review_description.split(" ").length > 20 && (
                       <a
-                        className="cursor-pointer text-BlackColor whitespace-nowrap font-medium absolute right-0 bottom-0"
+                        className="cursor-pointer text-LinkedInBlue whitespace-nowrap font-medium absolute right-0 bottom-0"
                         onClick={() => ExpandReviewText(review.review_id)}
                         style={{
                           background: "white",
@@ -705,7 +705,7 @@ export default function ReviewsList({
                     )}
                   {expandedReviewText[review.review_id] && (
                     <a
-                      className="cursor-pointer text-BlackColor whitespace-nowrap font-medium"
+                      className="cursor-pointer text-LinkedInBlue whitespace-nowrap font-medium"
                       onClick={() => ExpandReviewText(review.review_id)}
                     >
                       <span className="underline !ml-1">Read less</span>
@@ -846,7 +846,7 @@ export default function ReviewsList({
                           {!expandedReplyText[comment.comment_id] &&
                             comment.comment_description.split(" ").length > 20 && (
                               <a
-                                className="cursor-pointer text-BlackColor whitespace-nowrap font-medium absolute right-0 bottom-0"
+                                className="cursor-pointer text-LinkedInBlue whitespace-nowrap font-medium absolute right-0 bottom-0"
                                 onClick={() => ExpandReplyText(comment.comment_id)}
                                 style={{
                                   background: "white",
@@ -861,7 +861,7 @@ export default function ReviewsList({
                             )}
                           {expandedReplyText[comment.comment_id] && (
                             <a
-                              className="cursor-pointer text-BlackColor whitespace-nowrap font-medium"
+                              className="cursor-pointer text-LinkedInBlue whitespace-nowrap font-medium"
                               onClick={() => ExpandReplyText(comment.comment_id)}
                             >
                               <span className="underline !ml-1">Read less</span>

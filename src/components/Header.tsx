@@ -114,8 +114,8 @@ export default function Header({
               </div> */}
             </>
           ) : ShowUnlockMessage.includes(location.pathname) && reviews.length < 3 ? (
-            <div className="bg-accent text-center p-2 bg-[#ffbf72]">
-              <span className="text-muted-foreground text-black">
+            <div className="bg-accent text-center p-2 bg-[#EBF3FC]">
+              <span className="text-muted-foreground text-[#004182]">
                 Your profile is locked. Review {remainingReviews} profile(s) to unlock.
               </span>
             </div>

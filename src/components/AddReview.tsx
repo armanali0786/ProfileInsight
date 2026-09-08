@@ -167,14 +167,14 @@ export default function AddReview({
                         <g clipPath="url(#clip0_188_1909)">
                           <path
                             d="M19.4435 11.9685L19.677 12.5551L20.307 12.5965L29.4681 13.1988L22.4322 19.1645L21.9556 19.5686L22.1099 20.1741L24.4129 29.214L16.5279 24.2299L15.9936 23.8922L15.4593 24.2299L7.57439 29.2139L9.87742 20.1741L10.0316 19.5691L9.55563 19.1649L2.52921 13.1988L11.6804 12.5965L12.3103 12.555L12.5438 11.9685L15.9936 3.30162L19.4435 11.9685Z"
-                            stroke="#FFCC80"
+                            stroke="#0A66C2"
                             strokeWidth="2"
                             fill={
                               index <=
                               (hoveredStar !== null
                                 ? hoveredStar
-                                : newReview.rating - 1) 
-                                ? "#FFCC80" 
+                                : newReview.rating - 1)
+                                ? "#0A66C2"
                                 : "none"
                             }
                           />

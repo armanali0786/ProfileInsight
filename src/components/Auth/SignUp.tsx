@@ -282,7 +282,7 @@ export default function SignUp({
                         )}
                     </button>
                     </div>
-                    {userData && !showConfirmPassword &&(<span className="text-yellow-500">Leave blank if do not want to change.</span>)}
+                    {userData && !showConfirmPassword &&(<span className="text-LinkedInBlue">Leave blank if do not want to change.</span>)}
                     <ErrorMessage
                       name="password"
                       component="div"
