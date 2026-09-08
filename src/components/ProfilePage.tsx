@@ -46,7 +46,7 @@ export default function ProfilePage({
     const [uploadingImage, setUploadingImage] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const MAX_PROFILE_IMAGE_SIZE = 500 * 1024; // 500KB
+    const MAX_PROFILE_IMAGE_SIZE = 1024 * 1024; // 1MB
 
     /*-------------- Upload / Change Profile Image  ---------------*/
     const handleProfileImageClick = () => {
@@ -63,7 +63,7 @@ export default function ProfilePage({
             return;
         }
         if (file.size > MAX_PROFILE_IMAGE_SIZE) {
-            toast.error("Image is too large. Maximum allowed size is 500KB.");
+            toast.error("Image is too large. Maximum allowed size is 1MB.");
             return;
         }
 

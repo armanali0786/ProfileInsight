@@ -20,7 +20,7 @@ app.use(express.urlencoded({ extended: true }));
 const PROFILE_UPLOADS_DIR = path.join(__dirname, 'uploads', 'profile');
 fs.mkdirSync(PROFILE_UPLOADS_DIR, { recursive: true });
 
-const MAX_PROFILE_IMAGE_SIZE = 500 * 1024; // 500KB
+const MAX_PROFILE_IMAGE_SIZE = 1024 * 1024; // 1MB
 
 // The extension sends most fields via FormData (multipart/form-data). `.any()` parses
 // both the text fields (into req.body, same as the old `.none()` behavior for every
@@ -59,7 +59,7 @@ if (process.env.NODE_ENV !== 'production') {
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ message: 'Image is too large. Maximum allowed size is 500KB.' });
+      return res.status(400).json({ message: 'Image is too large. Maximum allowed size is 1MB.' });
     }
     return res.status(400).json({ message: err.message });
   }
