@@ -23,20 +23,33 @@ export default function Register({ isLoggedIn, setIsLoggedIn, fetchTotalReviewCo
 
   /*-------------- Register and Login with LinkedIn Auth  ----------------*/
   const RegisterWithLinkedIn = (type) => {
-    const linkedInAuthUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${LinkedInApi.clientId}&redirect_uri=${LinkedInApi.redirectUri}&state=${LinkedInApi.state}&scope=openid,profile,email`;
-    chrome.identity.launchWebAuthFlow(
-      {
-        url: linkedInAuthUrl,
-        interactive: true,
-      },
-      function (redirectUrl) {
+    const authParams = new URLSearchParams({
+      response_type: "code",
+      client_id: LinkedInApi.clientId,
+      redirect_uri: LinkedInApi.redirectUri,
+      state: LinkedInApi.state,
+      scope: "openid profile email",
+    });
+    const linkedInAuthUrl = `https://www.linkedin.com/oauth/v2/authorization?${authParams.toString()}`;
+    chrome.runtime.sendMessage(
+      { type: "launchLinkedInAuth", url: linkedInAuthUrl },
+      (response) => {
+        if (!response || response.error) {
+          console.error(
+            "LinkedIn auth flow failed:",
+            response?.error || "No response from background script"
+          );
+          toast.error("Could not open LinkedIn login. Please try again.");
+          return;
+        }
         // Handle the redirect and extract the authorization code
-        const urlParams = new URLSearchParams(new URL(redirectUrl).search);
+        const urlParams = new URLSearchParams(new URL(response.redirectUrl).search);
         const code = urlParams.get("code");
         const state = urlParams.get("state");
-        console.log(code);
         if (code) {
           LoginWithLinkedIn(code, state, type);
+        } else {
+          toast.error("LinkedIn login was cancelled or failed.");
         }
       }
     );
@@ -89,9 +102,7 @@ export default function Register({ isLoggedIn, setIsLoggedIn, fetchTotalReviewCo
       }
     } catch (error) {
       console.error("Error during LinkedIn login:", error);
-      // toast.error("An error occurred. Please try again.");
-      handleApiError(error.response.data)
-
+      handleApiError(error?.response?.data || { message: error?.message });
     } finally {
       setIsLoading(false);
     }

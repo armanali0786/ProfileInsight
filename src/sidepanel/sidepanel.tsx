@@ -60,12 +60,15 @@ function SidePanel() {
   /*------------------ Fetch Total Reviews Length ----------------------*/
   const fetchAllReviews = async () => {
     const userInfo = localStorage.getItem("LoginUserData");
-    const parsedInfo = JSON.parse(userInfo);
-    const contactId = parsedInfo.contact_id; 
+    if (!userInfo) {
+      return;
+    }
     try {
-      const database = await initDB();  
-      setDb(database); 
-      const reviewsData = await getTotalReviews(database, contactId);  
+      const parsedInfo = JSON.parse(userInfo);
+      const contactId = parsedInfo.contact_id;
+      const database = await initDB();
+      setDb(database);
+      const reviewsData = await getTotalReviews(database, contactId);
       setTotalReviews(reviewsData.length);
     } catch (error) {
       console.error("Error fetching all reviews:", error);
@@ -106,10 +109,13 @@ function SidePanel() {
 
   /*------------------ Fetch total reviews counts ----------------------*/
   const fetchTotalReviewCount = async() => {
+    const userInfo = localStorage.getItem("LoginUserData");
+    if (!userInfo) {
+      return;
+    }
     try{
-      const userInfo = localStorage.getItem("LoginUserData");
       const parsedInfo = JSON.parse(userInfo);
-      const contactId = parsedInfo.contact_id; 
+      const contactId = parsedInfo.contact_id;
       const formData = new FormData();
       formData.append("contact_id", contactId);
       const responsData = await axios.post(
@@ -128,7 +134,7 @@ function SidePanel() {
       }
 
     }catch (error) {
-      handleApiError(error.response.data)
+      handleApiError(error?.response?.data || { message: error?.message });
     }
   };
   
@@ -137,7 +143,7 @@ function SidePanel() {
   },[linkedInUserId]);
 
   const handleApiError = (response) => {
-    toast.error(response.message);
+    toast.error(response?.message || "Something went wrong.");
   };
 
 

@@ -101,3 +101,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.runtime.sendMessage({ type: "authCodeReceived", code, state });
   }
 });
+
+// Runs the OAuth popup from the background service worker instead of the side
+// panel: launchWebAuthFlow ties its "one flow at a time" lock to the calling
+// window, and side panels aren't a real window, which made it fail immediately.
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "launchLinkedInAuth") {
+    chrome.identity.launchWebAuthFlow(
+      { url: message.url, interactive: true },
+      (redirectUrl) => {
+        if (chrome.runtime.lastError || !redirectUrl) {
+          sendResponse({
+            error: chrome.runtime.lastError?.message || "No redirect URL returned",
+          });
+          return;
+        }
+        sendResponse({ redirectUrl });
+      }
+    );
+    return true; // keep the message channel open for the async sendResponse
+  }
+});
