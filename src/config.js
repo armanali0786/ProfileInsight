@@ -1,6 +1,8 @@
 
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+
 export const URL = {
-    BASE_URL : 'http://192.168.29.116:8888/revilapp_api'
+    BASE_URL : API_BASE_URL
 }
 
 export const LinkedInApi = {

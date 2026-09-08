@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { addReview, updateReview } from "../../indexedDB";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
-import { AuthData } from "../../config";
+import { AuthData, API_BASE_URL } from "../../config";
 import { useNavigate } from "react-router-dom";
 export default function ReviewForm({
   setHoveredStar,
@@ -50,7 +50,7 @@ export default function ReviewForm({
       const userInfo = localStorage.getItem("LoginUserData");
       const parsedInfo = JSON.parse(userInfo);
       const response = await axios.post(
-        "https://app.revil.app/admin/reviews/submit_review",
+        `${API_BASE_URL}/admin/reviews/submit_review`,
         formData,
         {
           headers: {
@@ -78,7 +78,7 @@ export default function ReviewForm({
         let updatedAccountStatus = AccountStatus;
         if (AccountStatus > 2) {
           const accountStatusResponse = await axios.post(
-            "https://app.revil.app/admin/api/contacts/update_account_status",
+            `${API_BASE_URL}/admin/api/contacts/update_account_status`,
             formData,
             {
               headers: {
@@ -141,7 +141,7 @@ export default function ReviewForm({
       formData.append("created_at", updatedReview.createdAt);
       formData.append("updated_at", new Date().toISOString());
       const response = await axios.post(
-        "https://app.revil.app/admin/reviews/update_review",
+        `${API_BASE_URL}/admin/reviews/update_review`,
         formData,
         {
           headers: {

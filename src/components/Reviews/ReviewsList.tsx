@@ -10,7 +10,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import EditIcon from "../../assets/images/edit.png";
 import DeleteIcon from "../../assets/images/delete.png";
 import DeleteConfirmation from "../DeleteConfirmation";
-import { AuthData } from "../../config";
+import { AuthData, API_BASE_URL } from "../../config";
 import DownArror from "../../assets/images/down-arror.png";
 
 import {
@@ -118,7 +118,7 @@ export default function ReviewsList({
         formData.append("contact_id", contactId);
         formData.append("profile_id", review.profile_id);
         const response = await axios.post(
-          `https://app.revil.app/admin/reviews/delete_review`,
+          `${API_BASE_URL}/admin/reviews/delete_review`,
           formData,
           {
             headers: {
@@ -160,7 +160,7 @@ export default function ReviewsList({
               formData.append("contact_id", contactId);
               formData.append("status", updatedAccountStatus);
               const accountStatusResponse = await axios.post(
-                "https://app.revil.app/admin/api/contacts/update_account_status",
+                `${API_BASE_URL}/admin/api/contacts/update_account_status`,
                 formData,
                 {
                   headers: {
@@ -236,7 +236,7 @@ export default function ReviewsList({
         formData.append("contact_id", contactId);
 
         const response = await axios.post(
-          `https://app.revil.app/admin/reviews/comments/delete_comment`,
+          `${API_BASE_URL}/admin/reviews/comments/delete_comment`,
           formData,
           {
             headers: {
@@ -309,7 +309,7 @@ export default function ReviewsList({
     formData.append("contact_id", contactId);
     try {
       const response = await axios.post(
-        "https://app.revil.app/admin/reviews/like_review",
+        `${API_BASE_URL}/admin/reviews/like_review`,
         formData,
         {
           headers: {
@@ -347,7 +347,7 @@ export default function ReviewsList({
     formData.append("contact_id", contactId);
     try {
       const response = await axios.post(
-        "https://app.revil.app/admin/reviews/comments/like_comment",
+        `${API_BASE_URL}/admin/reviews/comments/like_comment`,
         formData,
         {
           headers: {
@@ -558,7 +558,7 @@ export default function ReviewsList({
                     <div className="flex gap-2 w-[calc(100%-45px)]">
                       <div className="overflow-hidden rounded-full h-7 w-7">
                         <img
-                          src={review.is_anon == 1 ? UserProfile : `https://app.revil.app/uploads/profile/${review.reviewer_profile_img}`}
+                          src={review.is_anon == 1 ? UserProfile : `${API_BASE_URL}/uploads/profile/${review.reviewer_profile_img}`}
                           className=" object-cover h-full w-full"
                         />
                       </div>
@@ -754,7 +754,7 @@ export default function ReviewsList({
                           <div className="flex gap-2 w-[calc(100%-45px)] items-center">
                             <div className="overflow-hidden rounded-full h-6 w-6">
                               <img
-                               src={`https://app.revil.app/uploads/profile/${comment.commenter_profile}`}
+                               src={`${API_BASE_URL}/uploads/profile/${comment.commenter_profile}`}
                                 className=" object-cover h-full w-full"
                               />
                             </div>

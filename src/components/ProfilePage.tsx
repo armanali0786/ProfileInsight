@@ -16,7 +16,7 @@ import SettingsIcon from "../assets/images/settings.png";
 import {  getLoginUserData } from "../indexedDB";
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { AuthData } from "../config";
+import { AuthData, API_BASE_URL } from "../config";
 
 
 type ProfileProps = {
@@ -48,7 +48,7 @@ export default function ProfilePage({
             const contactId = parsedInfo.contact_id; 
 
             const response = await axios.get(
-                `https://app.revil.app/admin/api/contacts/data/1/${contactId}`,
+                `${API_BASE_URL}/admin/api/contacts/data/1/${contactId}`,
                 {
                     headers: {
                         "Content-Type": "multipart/form-data",
@@ -95,7 +95,7 @@ export default function ProfilePage({
                     <div className="p-[15px] mx-[-20px] items-center flex gap-[12px]">
                         <div className=" rounded-full h-[60px] w-[60px] overflow-hidden">
                             <img
-                                src={userProfileData?.profile_image ? `https://app.revil.app/uploads/profile/${userProfileData.profile_image}` : UserProfile}
+                                src={userProfileData?.profile_image ? `${API_BASE_URL}/uploads/profile/${userProfileData.profile_image}` : UserProfile}
                                 className=" object-cover h-full w-full"
                             />
                         </div>

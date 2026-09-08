@@ -6,7 +6,7 @@ import {
   useNavigate,
   useLocation,
 } from "react-router-dom";
-import { AuthData } from "../config";
+import { AuthData, API_BASE_URL } from "../config";
 import toast, { Toaster } from 'react-hot-toast';
 import Review from "../components/Review";
 import SignUp from "../components/Auth/SignUp";
@@ -113,7 +113,7 @@ function SidePanel() {
       const formData = new FormData();
       formData.append("contact_id", contactId);
       const responsData = await axios.post(
-        "https://app.revil.app/admin/reviews/get_profile_public_data",
+        `${API_BASE_URL}/admin/reviews/get_profile_public_data`,
         formData,
         {
           headers: {

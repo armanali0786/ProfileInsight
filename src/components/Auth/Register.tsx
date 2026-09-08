@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import LinkedinIcon from "../../assets/images/linkedin-icon.png";
 import { LinkedInApi } from "../../config";
 import Loader from "../Loader/Loader";
-import { AuthData } from "../../config";
+import { AuthData, API_BASE_URL } from "../../config";
 
 export default function Register({ isLoggedIn, setIsLoggedIn, fetchTotalReviewCount }) {
   const initialState = {};
@@ -47,7 +47,7 @@ export default function Register({ isLoggedIn, setIsLoggedIn, fetchTotalReviewCo
     try {
       setIsLoading(true);
       const response = await fetch(
-        "https://app.revil.app/admin/api/contacts/data",
+        `${API_BASE_URL}/admin/api/contacts/data`,
         {
           method: "POST",
           headers: {

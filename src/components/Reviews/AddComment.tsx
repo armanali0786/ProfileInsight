@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { AuthData } from "../../config";
+import { AuthData, API_BASE_URL } from "../../config";
 import { toast } from "react-toastify";
 import {
   addCommentToReview,
@@ -38,8 +38,8 @@ export default function AddComment({
     }
 
     const apiUrl = editReplyIndex
-      ? "https://app.revil.app/admin/reviews/comments/update_comment"
-      : "https://app.revil.app/admin/reviews/comments/save_comment";
+      ? `${API_BASE_URL}/admin/reviews/comments/update_comment`
+      : `${API_BASE_URL}/admin/reviews/comments/save_comment`;
 
     try {
       const response = await axios.post(apiUrl, formData, {

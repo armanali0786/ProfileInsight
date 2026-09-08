@@ -6,7 +6,7 @@ import ReviewRelations from "../ReviewRelations";
 import ReviewForm from "./ReviewForm";
 import ReviewsList from "./ReviewsList";
 import axios from "axios";
-import { AuthData } from "../../config";
+import { AuthData, API_BASE_URL } from "../../config";
 
 import {
   storeReviewsInDB,
@@ -341,7 +341,7 @@ export default function ReviewPage({
       formData.append("contact_id", contactId);
       formData.append("profile_id", linkedInUserId);
       const response = await axios.post(
-        "https://app.revil.app/admin/reviews/get_reviews",
+        `${API_BASE_URL}/admin/reviews/get_reviews`,
         formData,
         {
           headers: {
@@ -493,7 +493,7 @@ export default function ReviewPage({
     formData.append("profile_name", linkedInUserDetails.name);
     try {
       const response = await axios.post(
-        "https://app.revil.app/admin/reviews/claim_profile",
+        `${API_BASE_URL}/admin/reviews/claim_profile`,
         formData,
         {
           headers: {
@@ -533,7 +533,7 @@ export default function ReviewPage({
     }
     try {
       const response = await axios.post(
-        "https://app.revil.app/admin/reviews/cancel_claim_request",
+        `${API_BASE_URL}/admin/reviews/cancel_claim_request`,
         formData,
         {
           headers: {
@@ -573,7 +573,7 @@ export default function ReviewPage({
     }
     try {
       const response = await axios.post(
-        "https://app.revil.app/admin/reviews/confirm_claim_request",
+        `${API_BASE_URL}/admin/reviews/confirm_claim_request`,
         formData,
         {
           headers: {
