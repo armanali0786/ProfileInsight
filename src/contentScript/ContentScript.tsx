@@ -84,7 +84,39 @@ export const ContentScript = () => {
   useEffect(() => {
     getLinkedInUserDetails();
 
+    // LinkedIn is a single-page app: navigating from one profile to another
+    // updates the URL via history.pushState/replaceState without a full page
+    // load, so chrome.tabs.onUpdated's "complete" status often never fires.
+    // We patch the History API (and listen for popstate/back-forward) here,
+    // in the content script, since it has real-time access to location.href
+    // and doesn't have to wait on a tab-level navigation event.
+    let lastUrl = window.location.href;
+    const notifyUrlChange = () => {
+      if (window.location.href === lastUrl) return;
+      lastUrl = window.location.href;
+      chrome.runtime.sendMessage({ type: "linkedinUrlChanged", url: lastUrl });
+      // Give LinkedIn's SPA a moment to render the new profile's DOM before
+      // re-scraping it.
+      setTimeout(getLinkedInUserDetails, 300);
+    };
+
+    const originalPushState = history.pushState.bind(history);
+    const originalReplaceState = history.replaceState.bind(history);
+    history.pushState = (...args) => {
+      originalPushState(...args);
+      notifyUrlChange();
+    };
+    history.replaceState = (...args) => {
+      originalReplaceState(...args);
+      notifyUrlChange();
+    };
+    window.addEventListener("popstate", notifyUrlChange);
+
     const observer = new MutationObserver(() => {
+      // Opportunistic fallback in case navigation happened through a path
+      // that bypassed the History API patch above.
+      notifyUrlChange();
+
       const profilePicElement = findProfilePicElement();
 
       // If the profilePic has changed, update the userDetails
@@ -101,6 +133,9 @@ export const ContentScript = () => {
     }
     return () => {
       observer.disconnect();
+      window.removeEventListener("popstate", notifyUrlChange);
+      history.pushState = originalPushState;
+      history.replaceState = originalReplaceState;
     };
   }, []);
 

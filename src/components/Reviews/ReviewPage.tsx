@@ -93,63 +93,47 @@ export default function ReviewPage({
     createdAt: string;
   }
 
-  useEffect(() => {
-    const extractUserIdFromLinkedIn = (url) => {
-      const regex = /linkedin\.com\/in\/([a-zA-Z0-9-]+)/;
-      const match = url.match(regex);
-      return match && match[1] ? match[1] : null;
-    };
+  const extractUserIdFromLinkedIn = (url) => {
+    const regex = /linkedin\.com\/in\/([a-zA-Z0-9-]+)/;
+    const match = url.match(regex);
+    return match && match[1] ? match[1] : null;
+  };
 
-    let timeoutId = null; // Store timeout ID
+  // Shared by both the tab-event effect below and the content script's
+  // real-time SPA-navigation message handler, so either path can react
+  // immediately to a profile change.
+  const updateUserInfo = (url) => {
+    setLoadingMessage(true);
 
-    const updateUserInfo = (url) => {
-      // setLoading(true); // Start loader immediately
-      setLoadingMessage(true);
-
-      // Clear previous timeout if there was one
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      // Set a new timeout
-      // timeoutId = setTimeout(() => {
-      if (url && url.match(/^https:\/\/www\.linkedin\.com\/in\/.+/)) {
-        setIsLinkedIn(true);
-        const linkedInUserId = extractUserIdFromLinkedIn(url);
-        if (linkedInUserId) {
-          setLinkedInUserId(linkedInUserId);
-          if (linkedInUserId !== lastLinkedInUserId) {
-            // Reset the form for the new profile
-            setShowReviewForm(false);
-            setNewReview({
-              description: "",
-              rating: 1,
-              linkedInUserId: "",
-              reviewId: "",
-              is_anon: false,
-            });
-            setEditIndex(null);
-          }
-          setLastLinkedInUserId(linkedInUserId);
-        } else {
-          // setIsLinkedIn(false);
-          toast.error("Could not extract user ID from LinkedIn profile!", {
-            // position: "top-center",
-            // autoClose: 2000,
-            // hideProgressBar: false,
-            // closeOnClick: true,
-            // pauseOnHover: true,
-            // draggable: true,
-            // progress: undefined,
-            // theme: "light",
+    if (url && url.match(/^https:\/\/www\.linkedin\.com\/in\/.+/)) {
+      setIsLinkedIn(true);
+      const linkedInUserId = extractUserIdFromLinkedIn(url);
+      if (linkedInUserId) {
+        setLinkedInUserId(linkedInUserId);
+        if (linkedInUserId !== lastLinkedInUserId) {
+          // Reset the form for the new profile
+          setShowReviewForm(false);
+          setNewReview({
+            description: "",
+            rating: 1,
+            linkedInUserId: "",
+            reviewId: "",
+            is_anon: false,
           });
+          setEditIndex(null);
         }
+        setLastLinkedInUserId(linkedInUserId);
       } else {
-        setIsLinkedIn(false);
-        // setLoading(false);
+        toast.error("Could not extract user ID from LinkedIn profile!");
       }
-      setLoading(false); // Stop loader after checking
-      // }, 1000);
-    };
+    } else {
+      setIsLinkedIn(false);
+    }
+    setLoading(false); // Stop loader after checking
+  };
+
+  useEffect(() => {
+    let timeoutId = null; // Store timeout ID
 
     // Handle tab activation (tab switch)
     const onTabActivated = (activeInfo) => {
@@ -248,7 +232,7 @@ export default function ReviewPage({
           chrome.scripting.executeScript(
             {
               target: { tabId: activeTab.id },
-              files: ["ContentScript.js"],
+              files: ["contentScript.js"],
             },
             () => {
               console.log("Content script injected into LinkedIn tab");
@@ -259,6 +243,13 @@ export default function ReviewPage({
     };
 
     const handleChromeMessage = async (request) => {
+      // LinkedIn's SPA navigation (profile-to-profile) doesn't reliably fire
+      // chrome.tabs.onUpdated's "complete" status, so the content script
+      // pushes URL changes directly for an immediate, real-time switch.
+      if (request.type === "linkedinUrlChanged" && request.url) {
+        updateUserInfo(request.url);
+        return;
+      }
       try {
         const userLinkedInData = await fetchUserDetailsByLinkedInId(
           linkedInUserId

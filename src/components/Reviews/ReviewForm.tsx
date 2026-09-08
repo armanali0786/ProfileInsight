@@ -233,7 +233,7 @@ export default function ReviewForm({
           );
         }
         setNewReview({ description: "", rating: 1, linkedInUserId: "" });
-        // await fetchAllLinkedInUserReviews();
+        await fetchAllLinkedInUserReviews();
         fetchAllReviews();
         const reviewFormData = JSON.parse(
           localStorage.getItem("reviewFormData")
