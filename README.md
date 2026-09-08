@@ -1,4 +1,4 @@
-# ProfileInsight
+<img width="470" height="893" alt="main-linkedin-page" src="https://github.com/user-attachments/assets/4d0d97fb-55bc-4e8c-b834-656b300b7ad9" /># ProfileInsight
 
 ProfileInsight is a Chrome extension (Manifest V3) that lets people leave and read **reviews, ratings, and comments on public LinkedIn profiles**, directly while browsing LinkedIn. It opens as a Chrome side panel, detects whichever LinkedIn profile you're currently viewing, and shows/collects community feedback about that person — with a full LinkedIn-blue themed UI that matches LinkedIn's own look and feel.
 
@@ -181,6 +181,26 @@ npm run watch     # rebuild on file changes, for active development
 
 ---
 
+
+
 ## License
 
 MIT
+
+
+Visuals 
+
+<img width="470" height="893" alt="mainpage" src="https://github.com/user-attachments/assets/afc49e9f-edcd-4629-a99b-86f0415f728a" />
+
+<img width="470" height="893" alt="signup" src="https://github.com/user-attachments/assets/6c37ab70-50ba-42c6-bc7f-4fa54832b631" />
+
+<img width="1851" height="983" alt="main-page-with-full" src="https://github.com/user-attachments/assets/2d10fbe4-ba08-4593-a66a-3f78ed55dc66" />
+
+<img width="470" height="893" alt="main-linkedin-page" src="https://github.com/user-attachments/assets/b00d4070-9f79-4b32-a839-1e50cfc0e5a5" />
+
+<img width="470" height="893" alt="profile" src="https://github.com/user-attachments/assets/8e6aad54-0d02-499f-a139-16021c3b8747" />
+
+<img width="470" height="893" alt="all-reviewed" src="https://github.com/user-attachments/assets/3ce58b6e-b802-433a-9755-b70f58cd2198" />
+
+<img width="470" height="893" alt="not-on-linkedinpage" src="https://github.com/user-attachments/assets/a612f7a9-f348-4602-983d-186bc3e08830" />
+
