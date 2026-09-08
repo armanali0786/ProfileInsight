@@ -130,7 +130,7 @@ router.post('/update_profile', async (req, res) => {
   res.status(200).json({ data: contactDTO(contact), message: 'Personal information updated.' });
 });
 
-// POST /admin/api/contacts/upload_profile_image (multipart field name: "profile_image", max 500KB)
+// POST /admin/api/contacts/upload_profile_image (multipart field name: "profile_image", max 1MB)
 router.post('/upload_profile_image', async (req, res) => {
   const { contact_id } = req.body;
   if (!mongoose.Types.ObjectId.isValid(contact_id)) {
