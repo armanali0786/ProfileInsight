@@ -7,7 +7,9 @@ const round1 = (n) => Math.round(n * 10) / 10;
 
 async function computeExtras(profileId, contactId) {
   const [stats] = await Review.aggregate([
-    { $match: { profile_id: profileId } },
+    // Phase 5: a review hidden by moderation (see routes/reviews.js#report) shouldn't drag
+    // the average rating -- it's excluded from the reputation math entirely, not just the list.
+    { $match: { profile_id: profileId, is_hidden: { $ne: true } } },
     {
       $group: {
         _id: null,
@@ -38,6 +40,7 @@ async function computeExtras(profileId, contactId) {
     show_claim_button: profile && profile.claimed_by ? 0 : 1,
     show_code_input: pendingClaim ? 1 : 0,
     request_id: pendingClaim ? String(pendingClaim._id) : undefined,
+    is_owner: Boolean(profile && contactId && String(profile.claimed_by) === String(contactId)),
     reputation: {
       category_averages: Object.fromEntries(
         CATEGORY_KEYS.map((key) => [

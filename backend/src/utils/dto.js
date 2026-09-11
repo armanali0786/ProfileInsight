@@ -50,6 +50,10 @@ function reviewDTO(review, viewerContactId) {
     would_work_again: review.would_work_again === undefined ? null : review.would_work_again,
     standout_strength: review.standout_strength || '',
     verification_status: review.verification_status || 'unverified',
+    owner_response:
+      review.owner_response && review.owner_response.text
+        ? { text: review.owner_response.text, responded_at: review.owner_response.responded_at }
+        : null,
     comments: (review.comments || []).map((c) => commentDTO(c, viewerContactId)),
   };
 }

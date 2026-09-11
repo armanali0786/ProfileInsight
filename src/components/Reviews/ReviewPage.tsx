@@ -49,6 +49,7 @@ export default function ReviewPage({
     show_claim_button: number;
     show_code_input: number;
     request_id: number;
+    is_owner?: boolean;
     reputation?: {
       category_averages: Record<string, number | null>;
       would_work_again_pct: number | null;
@@ -370,6 +371,7 @@ export default function ReviewPage({
         show_code_input: extrasData?.show_code_input || "",
         request_id: extrasData?.request_id || "",
         reputation: extrasData?.reputation,
+        is_owner: Boolean(extrasData?.is_owner),
       });
 
       if (response.status == 200) {
@@ -679,6 +681,8 @@ export default function ReviewPage({
                   <ReviewsList
                     searchTerm={searchTerm}
                     setSearchTerm={setSearchTerm}
+                    extraData={extraData}
+                    profileName={linkedInUserDetails.name}
                     reviews={reviews}
                     setNewReview={setNewReview}
                     setEditIndex={setEditIndex}

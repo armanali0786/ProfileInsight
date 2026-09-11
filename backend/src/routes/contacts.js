@@ -3,8 +3,11 @@ const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
 const Contact = require('../models/Contact');
+const Profile = require('../models/Profile');
+const Block = require('../models/Block');
 const { exchangeCodeForToken, fetchUserInfo } = require('../utils/linkedin');
 const { contactDTO } = require('../utils/dto');
+const { extractProfileId } = require('../utils/profileId');
 
 const router = express.Router();
 const PROFILE_UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads', 'profile');
@@ -175,6 +178,75 @@ router.post('/update_review_visibility', async (req, res) => {
   }
 
   res.status(200).json({ data: contactDTO(contact), message: 'Privacy setting updated.' });
+});
+
+// POST /admin/api/contacts/block -- Phase 5 review quality control. Pass either
+// blocked_contact_id directly (used when blocking straight from a review card, where the
+// reviewer's contact id is already known) or blocked_profile_url to resolve one by their
+// claimed LinkedIn profile.
+router.post('/block', async (req, res) => {
+  const { contact_id, blocked_contact_id, blocked_profile_url } = req.body;
+  if (!mongoose.Types.ObjectId.isValid(contact_id)) {
+    return res.status(400).json({ message: 'contact_id is required.' });
+  }
+
+  let targetId = blocked_contact_id;
+  if (!targetId && blocked_profile_url) {
+    const profileId = extractProfileId(blocked_profile_url);
+    const profile = await Profile.findOne({ profile_id: profileId });
+    if (!profile || !profile.claimed_by) {
+      return res.status(400).json({ message: "This person hasn't claimed a ProfileInsight profile yet." });
+    }
+    targetId = profile.claimed_by;
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(targetId)) {
+    return res.status(400).json({ message: 'A valid person to block is required.' });
+  }
+  if (String(targetId) === String(contact_id)) {
+    return res.status(400).json({ message: "You can't block yourself." });
+  }
+
+  try {
+    await Block.create({ blocker_id: contact_id, blocked_id: targetId });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(200).json({ message: 'Already blocked.' });
+    }
+    throw err;
+  }
+
+  res.status(200).json({ message: 'User blocked. Their reviews about you are now hidden.' });
+});
+
+// POST /admin/api/contacts/unblock
+router.post('/unblock', async (req, res) => {
+  const { contact_id, blocked_contact_id } = req.body;
+  if (!mongoose.Types.ObjectId.isValid(contact_id) || !mongoose.Types.ObjectId.isValid(blocked_contact_id)) {
+    return res.status(400).json({ message: 'A valid blocked_contact_id is required.' });
+  }
+  await Block.findOneAndDelete({ blocker_id: contact_id, blocked_id: blocked_contact_id });
+  res.status(200).json({ message: 'User unblocked.' });
+});
+
+// POST /admin/api/contacts/blocked_list
+router.post('/blocked_list', async (req, res) => {
+  const { contact_id } = req.body;
+  if (!mongoose.Types.ObjectId.isValid(contact_id)) {
+    return res.status(400).json({ message: 'contact_id is required.' });
+  }
+
+  const blocks = await Block.find({ blocker_id: contact_id }).populate('blocked_id').sort({ created_at: -1 });
+  const data = blocks
+    .filter((b) => b.blocked_id)
+    .map((b) => ({
+      blocked_contact_id: String(b.blocked_id._id),
+      fullname: `${b.blocked_id.firstname} ${b.blocked_id.lastname}`.trim(),
+      profile_image: b.blocked_id.profile_image,
+      blocked_at: b.created_at,
+    }));
+
+  res.status(200).json({ data });
 });
 
 module.exports = router;

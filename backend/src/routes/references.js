@@ -9,16 +9,12 @@ const {
   parseCategoryRatings,
   averageCategoryRatings,
 } = require('../utils/categories');
+const { extractProfileId } = require('../utils/profileId');
 
 const router = express.Router();
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 const isTruthy = (value) => value === '1' || value === 1 || value === true || value === 'true';
-
-const extractProfileId = (value) => {
-  const match = String(value || '').match(/linkedin\.com\/in\/([a-zA-Z0-9-]+)/);
-  return match ? match[1] : String(value || '').trim();
-};
 
 // POST /admin/references/request -- ask another ProfileInsight user for a structured
 // reference about a candidate profile. Only works if the recipient has already claimed

@@ -10,6 +10,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import EditIcon from "../../assets/images/edit.png";
 import DeleteIcon from "../../assets/images/delete.png";
 import DeleteConfirmation from "../DeleteConfirmation";
+import ReportReviewModal from "../ReportReviewModal";
 import { AuthData, API_BASE_URL } from "../../config";
 import DownArror from "../../assets/images/down-arror.png";
 
@@ -52,7 +53,9 @@ export default function ReviewsList({
   setReviewerTotalReviewCount,
   setExtraData,
   setLoadingApiResponse,
-  myProfileImage
+  myProfileImage,
+  extraData,
+  profileName,
 }) {
   const [selectedReviewId, setSelectedReviewId] = useState(null);
   const [selectedReplyId, setSelectedReplyId] = useState(null);
@@ -64,6 +67,10 @@ export default function ReviewsList({
   const [activeFilter, setActiveFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [editReplyIndex, setEditReplyIndex] = useState(null);
+  const [reportReviewId, setReportReviewId] = useState(null);
+  const [showRespondFor, setShowRespondFor] = useState(null);
+  const [responseText, setResponseText] = useState("");
+  const [respondingReviewIds, setRespondingReviewIds] = useState([]);
 
   /*-------------- Format Review Date ---------------*/
   const formatDate = (dateString) => {
@@ -139,6 +146,7 @@ export default function ReviewsList({
             show_code_input: extrasData?.show_code_input || "",
             request_id: extrasData?.request_id || "",
             reputation: extrasData?.reputation,
+            is_owner: Boolean(extrasData?.is_owner),
           })
           deleteReview(selectedReviewId, setLinkedInIdReviews);
           toast.success(response.data.message);
@@ -289,6 +297,92 @@ export default function ReviewsList({
   const handleApiError = (response) => {
     toast.error(response.message || "Something went wrong.");
     setNewReply({ description: "" });
+  };
+
+  /*-------------- Report a review (Phase 5) ---------------*/
+  const handleSubmitReport = async (reason) => {
+    const reviewId = reportReviewId;
+    setReportReviewId(null);
+    try {
+      const formData = new FormData();
+      formData.append("contact_id", contactId);
+      formData.append("review_id", reviewId);
+      formData.append("reason", reason);
+      const response = await axios.post(
+        `${API_BASE_URL}/admin/reviews/report`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            authtoken: AuthData.token,
+          },
+        }
+      );
+      toast.success(response.data.message);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Something went wrong.");
+    }
+  };
+
+  /*-------------- Block a reviewer (Phase 5) ---------------*/
+  const handleBlockReviewer = async (reviewerId) => {
+    try {
+      const formData = new FormData();
+      formData.append("contact_id", contactId);
+      formData.append("blocked_contact_id", reviewerId);
+      const response = await axios.post(
+        `${API_BASE_URL}/admin/api/contacts/block`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            authtoken: AuthData.token,
+          },
+        }
+      );
+      toast.success(response.data.message);
+      setLinkedInIdReviews((prevReviews) => prevReviews.filter((r) => r.reviewer_id != reviewerId));
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Something went wrong.");
+    }
+  };
+
+  /*-------------- Respond to a review as the profile owner (Phase 5) ---------------*/
+  const handleSubmitResponse = async (reviewId) => {
+    const trimmed = responseText.trim();
+    if (!trimmed) {
+      toast.error("Write a response first.");
+      return;
+    }
+    setRespondingReviewIds((prev) => [...prev, reviewId]);
+    try {
+      const formData = new FormData();
+      formData.append("contact_id", contactId);
+      formData.append("review_id", reviewId);
+      formData.append("response_text", trimmed);
+      const response = await axios.post(
+        `${API_BASE_URL}/admin/reviews/respond_to_review`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            authtoken: AuthData.token,
+          },
+        }
+      );
+      toast.success(response.data.message);
+      setLinkedInIdReviews((prevReviews) =>
+        prevReviews.map((r) =>
+          r.review_id == reviewId ? { ...r, owner_response: response.data.data.owner_response } : r
+        )
+      );
+      setShowRespondFor(null);
+      setResponseText("");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Something went wrong.");
+    } finally {
+      setRespondingReviewIds((prev) => prev.filter((id) => id !== reviewId));
+    }
   };
 
   /*-------------- Expand Review Text based on reviewId ---------------*/
@@ -548,6 +642,11 @@ export default function ReviewsList({
         duration: 3000,
       }}
       />
+      <ReportReviewModal
+        isOpen={reportReviewId !== null}
+        onClose={() => setReportReviewId(null)}
+        onSubmit={handleSubmitReport}
+      />
       <div className="RetingCardMain">
         <div className="flex items-center gap-[15px] border-b border-BorderColor-15 pt-15px overflow-x-auto">
           {FILTER_TABS.map((tab) => (
@@ -644,31 +743,70 @@ export default function ReviewsList({
                           className="m-auto"
                         />
                       </button>
-                      {actionDropdownOpen == review.review_id &&
-                        contactId == review.reviewer_id && (
-                          <ul className="Dropdown !top-[30px] !right-[15px]">
-                            <li className="DropdownItems">
-                              <a
-                                onClick={() =>
-                                  handleEditReview(review.review_id)
-                                }
-                              >
-                                <div>Edit</div>
-                                <img src={EditIcon} className="h18w18" />
-                              </a>
-                            </li>
-                            <li className="DropdownItems">
-                              <a
-                                onClick={() =>
-                                  openDeleteModal(review.review_id)
-                                }
-                              >
-                                <div>Delete</div>
-                                <img src={DeleteIcon} className="h18w18" />
-                              </a>
-                            </li>
-                          </ul>
-                        )}
+                      {actionDropdownOpen == review.review_id && (
+                        <ul className="Dropdown !top-[30px] !right-[15px]">
+                          {contactId == review.reviewer_id ? (
+                            <>
+                              <li className="DropdownItems">
+                                <a
+                                  onClick={() =>
+                                    handleEditReview(review.review_id)
+                                  }
+                                >
+                                  <div>Edit</div>
+                                  <img src={EditIcon} className="h18w18" />
+                                </a>
+                              </li>
+                              <li className="DropdownItems">
+                                <a
+                                  onClick={() =>
+                                    openDeleteModal(review.review_id)
+                                  }
+                                >
+                                  <div>Delete</div>
+                                  <img src={DeleteIcon} className="h18w18" />
+                                </a>
+                              </li>
+                            </>
+                          ) : (
+                            <>
+                              <li className="DropdownItems">
+                                <a
+                                  onClick={() => {
+                                    setActionDropdownOpen(null);
+                                    setReportReviewId(review.review_id);
+                                  }}
+                                >
+                                  <div>Report</div>
+                                </a>
+                              </li>
+                              <li className="DropdownItems">
+                                <a
+                                  onClick={() => {
+                                    setActionDropdownOpen(null);
+                                    handleBlockReviewer(review.reviewer_id);
+                                  }}
+                                >
+                                  <div>Block</div>
+                                </a>
+                              </li>
+                              {extraData?.is_owner && !review.owner_response && (
+                                <li className="DropdownItems">
+                                  <a
+                                    onClick={() => {
+                                      setActionDropdownOpen(null);
+                                      setShowRespondFor(review.review_id);
+                                      setResponseText("");
+                                    }}
+                                  >
+                                    <div>Respond</div>
+                                  </a>
+                                </li>
+                              )}
+                            </>
+                          )}
+                        </ul>
+                      )}
                     </div>
                     <DeleteConfirmation
                       isOpen={isModalOpen}
@@ -788,6 +926,34 @@ export default function ReviewsList({
                     </a>
                   )}
                 </div>
+                {review.owner_response && (
+                  <div className="RetingCard RetingCardReply !gap-1">
+                    <span className="text-[11px] font-semibold text-BlackColor">
+                      Response from {profileName || "the profile owner"}
+                    </span>
+                    <div className="text-[12px] text-BlackColor-60">
+                      {review.owner_response.text}
+                    </div>
+                  </div>
+                )}
+                {showRespondFor === review.review_id && (
+                  <div className="flex items-center mt-4">
+                    <input
+                      type="text"
+                      placeholder="Write a response..."
+                      className="flex-1 p-2 border border-border rounded-lg bg-input text-foreground"
+                      value={responseText}
+                      onChange={(e) => setResponseText(e.target.value)}
+                    />
+                    <button
+                      className="ml-2 bg-LinkedInBlue hover:bg-LinkedInBlue-dark text-white p-2 rounded-md duration-300"
+                      disabled={respondingReviewIds.includes(review.review_id)}
+                      onClick={() => handleSubmitResponse(review.review_id)}
+                    >
+                      submit
+                    </button>
+                  </div>
+                )}
                 {/* Reply & Hide start  */}
                 {/* <div className=" flex items-center gap-15px">
                   <a

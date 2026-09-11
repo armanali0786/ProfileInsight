@@ -8,6 +8,9 @@ const ClaimRequest = require('../models/ClaimRequest');
 const Contact = require('../models/Contact');
 const RelationshipVerification = require('../models/RelationshipVerification');
 const ReferenceRequest = require('../models/ReferenceRequest');
+const Block = require('../models/Block');
+const ReviewReport = require('../models/ReviewReport');
+const { REPORT_REASONS } = require('../models/ReviewReport');
 const { reviewDTO, verificationDTO } = require('../utils/dto');
 const { computeExtras, computeSummaryConfidence } = require('../utils/extras');
 const { CATEGORY_KEYS, RELATIONSHIP_TYPES, RELATIONSHIP_DURATIONS, parseCategoryRatings } = require('../utils/categories');
@@ -19,6 +22,27 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 const isTruthy = (value) => value === '1' || value === 1 || value === true || value === 'true';
 const MIN_REVIEWS_FOR_AI_SUMMARY = 3;
 const AI_SUMMARY_TTL_MS = 24 * 60 * 60 * 1000; // re-check a summary at most once a day even if the review count hasn't moved
+const REVIEW_RATE_LIMIT = 10; // max reviews a single contact can submit within RATE_LIMIT_WINDOW_MS
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour -- blunt but enough to stop review-bombing scripts
+const AUTO_HIDE_REPORT_THRESHOLD = 3; // reports before a review is auto-hidden pending manual review
+
+// Phase 5: reviews from someone the profile owner has blocked disappear from the list for
+// everyone, and a moderation-hidden review (see /report) is hidden from everyone but its author.
+async function filterModeratedReviews(reviews, profileId, viewerContactId) {
+  const profile = await Profile.findOne({ profile_id: profileId }).select('claimed_by');
+  let blockedReviewerIds = new Set();
+  if (profile?.claimed_by) {
+    const blocks = await Block.find({ blocker_id: profile.claimed_by }).select('blocked_id');
+    blockedReviewerIds = new Set(blocks.map((b) => String(b.blocked_id)));
+  }
+
+  return reviews.filter((review) => {
+    const reviewerId = String(review.reviewer_id?._id || review.reviewer_id);
+    if (blockedReviewerIds.has(reviewerId)) return false;
+    if (review.is_hidden && (!viewerContactId || reviewerId !== String(viewerContactId))) return false;
+    return true;
+  });
+}
 
 // Phase 4 "My Reputation" privacy control: a claimed profile's owner can restrict who sees
 // reviews about them. The owner always sees everything about their own profile.
@@ -67,7 +91,7 @@ router.post('/get_reviews', async (req, res) => {
     .populate('reviewer_id')
     .sort({ created_at: -1 });
 
-  const { reviews, restricted } = await applyReviewVisibility(allReviews, profile_id, contact_id);
+  const { reviews: visibleReviews, restricted } = await applyReviewVisibility(allReviews, profile_id, contact_id);
   if (restricted) {
     return res.status(200).json({
       data: [],
@@ -76,6 +100,8 @@ router.post('/get_reviews', async (req, res) => {
       extras: { profile_avg_rating: 0, profile_total_ratings: 0, show_claim_button: 0, show_code_input: 0 },
     });
   }
+
+  const reviews = await filterModeratedReviews(visibleReviews, profile_id, contact_id);
 
   const comments = await Comment.find({ review_id: { $in: reviews.map((r) => r._id) } })
     .populate('commenter_id');
@@ -140,11 +166,28 @@ router.post('/submit_review', async (req, res) => {
     return res.status(409).json({ message: 'You have already reviewed this profile.' });
   }
 
+  // Phase 5: a blunt rate limit -- stops a compromised or scripted account from mass-submitting
+  // reviews faster than any real person reviewing coworkers could.
+  const recentReviewCount = await Review.countDocuments({
+    reviewer_id: contact_id,
+    created_at: { $gte: new Date(Date.now() - RATE_LIMIT_WINDOW_MS) },
+  });
+  if (recentReviewCount >= REVIEW_RATE_LIMIT) {
+    return res.status(429).json({ message: 'You are submitting reviews too quickly. Please try again later.' });
+  }
+
   const profile = await Profile.findOneAndUpdate(
     { profile_id },
     { $setOnInsert: { profile_name: profile_name || '' } },
     { upsert: true, new: true }
   );
+
+  if (profile.claimed_by) {
+    const blocked = await Block.findOne({ blocker_id: profile.claimed_by, blocked_id: contact_id });
+    if (blocked) {
+      return res.status(403).json({ message: 'You are not able to review this profile.' });
+    }
+  }
 
   const parsedCategories = parseCategoryRatings(category_ratings);
   const overallRating = parsedCategories ? parsedCategories.average : Number(rating);
@@ -535,6 +578,70 @@ router.post('/my_reputation', async (req, res) => {
       profile_image: profile.profile_image,
       ...extras,
     },
+  });
+});
+
+// POST /admin/reviews/report -- Phase 5 review quality control. Auto-hides a review once it
+// collects AUTO_HIDE_REPORT_THRESHOLD distinct reports, pending manual review.
+router.post('/report', async (req, res) => {
+  const { contact_id, review_id, reason, note } = req.body;
+  if (!isValidId(contact_id) || !isValidId(review_id)) {
+    return res.status(400).json({ message: 'contact_id and review_id are required.' });
+  }
+  if (!REPORT_REASONS.includes(reason)) {
+    return res.status(400).json({ message: 'A valid reason is required.' });
+  }
+
+  const review = await Review.findById(review_id);
+  if (!review) return res.status(404).json({ message: 'Review not found.' });
+  if (String(review.reviewer_id) === String(contact_id)) {
+    return res.status(400).json({ message: 'You cannot report your own review.' });
+  }
+
+  try {
+    await ReviewReport.create({ review_id, reporter_id: contact_id, reason, note: note || '' });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ message: 'You have already reported this review.' });
+    }
+    throw err;
+  }
+
+  review.report_count = (review.report_count || 0) + 1;
+  if (review.report_count >= AUTO_HIDE_REPORT_THRESHOLD) {
+    review.is_hidden = true;
+  }
+  await review.save();
+
+  res.status(200).json({ message: 'Thanks -- this review has been reported for moderation.' });
+});
+
+// POST /admin/reviews/respond_to_review -- lets a claimed profile's owner publicly respond to
+// a review about them (Screen "Respond" feature from the product brief).
+router.post('/respond_to_review', async (req, res) => {
+  const { contact_id, review_id, response_text } = req.body;
+  if (!isValidId(contact_id) || !isValidId(review_id)) {
+    return res.status(400).json({ message: 'contact_id and review_id are required.' });
+  }
+  const trimmed = String(response_text || '').trim();
+  if (!trimmed) {
+    return res.status(400).json({ message: 'A response is required.' });
+  }
+
+  const review = await Review.findById(review_id);
+  if (!review) return res.status(404).json({ message: 'Review not found.' });
+
+  const profile = await Profile.findOne({ profile_id: review.profile_id });
+  if (!profile || String(profile.claimed_by) !== String(contact_id)) {
+    return res.status(403).json({ message: 'You are not authorized to respond to this review.' });
+  }
+
+  review.owner_response = { text: trimmed, responded_at: new Date() };
+  await review.save();
+
+  res.status(200).json({
+    message: 'Response posted.',
+    data: { review_id: String(review._id), owner_response: review.owner_response },
   });
 });
 

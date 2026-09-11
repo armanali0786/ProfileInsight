@@ -28,6 +28,14 @@ const reviewSchema = new mongoose.Schema(
     // Set to 'pending' when the reviewee has a claimed profile (see submit_review), then
     // 'verified'/'unverified' once they respond via RelationshipVerification.
     verification_status: { type: String, enum: ['unverified', 'pending', 'verified'], default: 'unverified' },
+
+    // Phase 5 trust & safety.
+    is_hidden: { type: Boolean, default: false }, // auto-hidden after enough reports; see routes/reviews.js#report
+    report_count: { type: Number, default: 0 },
+    owner_response: {
+      text: { type: String, default: '' },
+      responded_at: { type: Date, default: undefined },
+    },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );
