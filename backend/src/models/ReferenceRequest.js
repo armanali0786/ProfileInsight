@@ -20,6 +20,7 @@ const referenceRequestSchema = new mongoose.Schema(
     recipient_profile_id: { type: String, required: true },
     recipient_name: { type: String, default: '' },
     status: { type: String, enum: ['pending', 'completed', 'declined'], default: 'pending' },
+    last_reminded_at: { type: Date, default: null },
 
     response: {
       category_ratings: { type: categoryRatingsSchema, default: undefined },

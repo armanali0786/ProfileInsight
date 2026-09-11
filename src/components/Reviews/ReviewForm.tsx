@@ -11,6 +11,52 @@ import {
 } from "../../constants/reputation";
 import { SelectDropdown, CategoryStarRow, SectionTitle } from "./FormControls";
 
+const STEPS = [
+  { id: 1, label: "Relationship" },
+  { id: 2, label: "Experience" },
+  { id: 3, label: "Ratings" },
+  { id: 4, label: "Feedback" },
+  { id: 5, label: "Privacy" },
+];
+
+function StepIndicator({ step }) {
+  return (
+    <div className="flex items-center">
+      {STEPS.map((s, index) => (
+        <React.Fragment key={s.id}>
+          <div className="flex flex-col items-center gap-[4px]">
+            <div
+              className={`h-[22px] w-[22px] shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold duration-200 ${
+                step === s.id
+                  ? "bg-LinkedInBlue text-WhiteColor"
+                  : step > s.id
+                  ? "bg-[#EAF1FB] text-LinkedInBlue"
+                  : "bg-GrayBg text-BlackColor-40"
+              }`}
+            >
+              {step > s.id ? "✓" : s.id}
+            </div>
+            <span
+              className={`text-[9px] whitespace-nowrap ${
+                step === s.id ? "text-LinkedInBlue font-medium" : "text-BlackColor-40"
+              }`}
+            >
+              {s.label}
+            </span>
+          </div>
+          {index < STEPS.length - 1 && (
+            <div
+              className={`flex-1 h-[2px] mx-[2px] mb-[14px] duration-200 ${
+                step > s.id ? "bg-LinkedInBlue" : "bg-BorderColor-15"
+              }`}
+            />
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
 export default function ReviewForm({
   newReview,
   setNewReview,
@@ -32,6 +78,7 @@ export default function ReviewForm({
   setLoadingApiResponse,
 }) {
   const navigate = useNavigate();
+  const [step, setStep] = useState(1);
 
   const setCategoryRating = (key, value) => {
     setNewReview({
@@ -45,6 +92,44 @@ export default function ReviewForm({
     const rated = values.filter((v) => v > 0);
     if (rated.length === 0) return 0;
     return Math.round((rated.reduce((sum, v) => sum + v, 0) / rated.length) * 10) / 10;
+  };
+
+  /*------------------  Per-step validation  ----------------------*/
+  const validateStep = (stepNumber) => {
+    if (stepNumber === 3) {
+      const unratedCategory = CATEGORY_FIELDS.find(
+        (field) => !newReview.category_ratings?.[field.key]
+      );
+      if (unratedCategory) {
+        toast.error(`Please rate "${unratedCategory.label}".`);
+        return false;
+      }
+      if (newReview.would_work_again === null || newReview.would_work_again === undefined) {
+        toast.error("Please let us know if you'd work with them again.");
+        return false;
+      }
+    }
+    if (stepNumber === 4) {
+      const trimmedDescription = newReview.description.trim();
+      if (trimmedDescription === "") {
+        toast.error("Review description cannot be empty.");
+        return false;
+      }
+      if (trimmedDescription.length < 5) {
+        toast.error("Review description must be at least 5 characters long.");
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleNext = () => {
+    if (!validateStep(step)) return;
+    setStep((s) => Math.min(s + 1, STEPS.length));
+  };
+
+  const handleBack = () => {
+    setStep((s) => Math.max(s - 1, 1));
   };
 
   /*------------------  Submit new Review  ----------------------*/
@@ -207,30 +292,12 @@ export default function ReviewForm({
 
   const handleSubmitReview = async (event) => {
     event.preventDefault();
+    if (!validateStep(3) || !validateStep(4)) return;
+
     const userInfo = localStorage.getItem("LoginUserData");
     const parsedInfo = JSON.parse(userInfo);
     const contactId = parsedInfo.contact_id;
 
-    const trimmedDescription = newReview.description.trim();
-    if (trimmedDescription === "") {
-      toast.error("Review description cannot be empty.");
-      return;
-    }
-    if (trimmedDescription.length < 5) {
-      toast.error("Review description must be at least 5 characters long.");
-      return;
-    }
-    const unratedCategory = CATEGORY_FIELDS.find(
-      (field) => !newReview.category_ratings?.[field.key]
-    );
-    if (unratedCategory) {
-      toast.error(`Please rate "${unratedCategory.label}".`);
-      return;
-    }
-    if (newReview.would_work_again === null || newReview.would_work_again === undefined) {
-      toast.error("Please let us know if you'd work with them again.");
-      return;
-    }
     if (newReview) {
       try {
         if (editIndex !== null || editIndex === -1) {
@@ -263,6 +330,7 @@ export default function ReviewForm({
           await submitReview(contactId, linkedInUserId, newReview);
         }
         setNewReview(emptyReview());
+        setStep(1);
         await fetchAllLinkedInUserReviews();
         fetchAllReviews();
         const reviewFormData = JSON.parse(
@@ -292,149 +360,180 @@ export default function ReviewForm({
           duration: 3000,
         }}
       />
-         <form className=" pt-20px pb-10px flex flex-col gap-[15px]" onSubmit={handleSubmitReview}>
-        {/* label check start  */}
-        <div className="flex justify-between items-center relative CheckBoxMain border border-BorderColor-15 rounded-[5px] px-[15px] py-[12px] bg-TextareaBg">
-          <label
-            htmlFor="anonymous"
-            className=" w-[calc(100%-25px)] truncate text-sm text-BlackColor"
-          >
-            Post this review anonymously
-          </label>
-          <input
-            type="checkbox"
-            id="anonymous"
-            name="anonymous"
-            checked={newReview.is_anon === "1"}
-            onChange={(e) =>
-              setNewReview({
-                ...newReview,
-                is_anon: e.target.checked ? "1" : "0",
-              })
-            }
-            value="Bike"
-            className="custom-Check-box z-[2]"
-          />
-          <div className="CheckBox"></div>
-        </div>
-        {/* label check end  */}
+      <form className="pt-20px pb-10px flex flex-col gap-[20px]" onSubmit={handleSubmitReview}>
+        <StepIndicator step={step} />
 
-        {/* structured rating card start */}
-        <div className="flex flex-col gap-[18px] p-[16px] border border-BorderColor-15 rounded-[8px]">
-          {/* relationship section start */}
-          <div className="flex flex-col gap-[12px]">
-            <SectionTitle>Your relationship</SectionTitle>
-            <div className="flex flex-col gap-[12px]">
-              <SelectDropdown
-                label="How do you know this person?"
-                value={newReview.relationship_type}
-                options={RELATIONSHIP_TYPES}
-                onChange={(value) => setNewReview({ ...newReview, relationship_type: value })}
-              />
-              <SelectDropdown
-                label="How long did you work together?"
-                value={newReview.relationship_duration}
-                options={RELATIONSHIP_DURATIONS}
-                onChange={(value) => setNewReview({ ...newReview, relationship_duration: value })}
-              />
-            </div>
-          </div>
-          {/* relationship section end */}
-
-          {/* category ratings section start */}
-          <div className="flex flex-col gap-[12px] pt-[18px] border-t border-BorderColor-15">
-            <SectionTitle
-              right={
-                categoryAverage() > 0 && (
-                  <span className="flex items-center gap-1 text-xs font-semibold text-LinkedInBlue bg-LinkedInBlue-tint px-[8px] py-[2px] rounded-full">
-                    {categoryAverage().toFixed(1)} ★
-                  </span>
-                )
-              }
-            >
-              Rate them on
-            </SectionTitle>
-            <div className="flex flex-col gap-[8px]">
-              {CATEGORY_FIELDS.map((field) => (
-                <CategoryStarRow
-                  key={field.key}
-                  label={field.label}
-                  value={Number(newReview.category_ratings?.[field.key]) || 0}
-                  onChange={(value) => setCategoryRating(field.key, value)}
-                />
-              ))}
-            </div>
-          </div>
-          {/* category ratings section end */}
-
-          {/* would work again start */}
-          <div className="flex flex-col gap-[12px] pt-[18px] border-t border-BorderColor-15">
-            <SectionTitle>Would you work with this person again?</SectionTitle>
-            <div className="grid grid-cols-2 gap-[10px]">
-              <button
-                type="button"
-                onClick={() => setNewReview({ ...newReview, would_work_again: true })}
-                className={`btn btn-sm !font-normal !shadow-none ${
-                  newReview.would_work_again === true ? "sign-in-btn" : "premium-btn"
-                }`}
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                onClick={() => setNewReview({ ...newReview, would_work_again: false })}
-                className={`btn btn-sm !font-normal !shadow-none ${
-                  newReview.would_work_again === false ? "sign-in-btn" : "premium-btn"
-                }`}
-              >
-                No
-              </button>
-            </div>
-          </div>
-          {/* would work again end */}
-
-          <div className="flex flex-col gap-[6px] pt-[18px] border-t border-BorderColor-15">
-            <label className="text-[11px] font-medium uppercase tracking-wide text-BlackColor-60">
-              What is one thing this person does exceptionally well?{" "}
-              <span className="normal-case font-normal text-BlackColor-40">(optional)</span>
-            </label>
-            <input
-              type="text"
-              className="FromInput !border !border-BorderColor-15"
-              value={newReview.standout_strength}
-              maxLength={140}
-              onChange={(e) => setNewReview({ ...newReview, standout_strength: e.target.value })}
-              placeholder="e.g. Communicates clearly under pressure"
+        {/* STEP 1 -- Relationship */}
+        {step === 1 && (
+          <div className="flex flex-col gap-[12px] p-[16px] border border-BorderColor-15 rounded-[8px]">
+            <SectionTitle>Relationship</SectionTitle>
+            <SelectDropdown
+              label="How do you know this person?"
+              value={newReview.relationship_type}
+              options={RELATIONSHIP_TYPES}
+              onChange={(value) => setNewReview({ ...newReview, relationship_type: value })}
             />
-            <div className="text-right text-[11px] text-BlackColor-40">
-              {(newReview.standout_strength || "").length}/140
+          </div>
+        )}
+
+        {/* STEP 2 -- Experience */}
+        {step === 2 && (
+          <div className="flex flex-col gap-[12px] p-[16px] border border-BorderColor-15 rounded-[8px]">
+            <SectionTitle>Experience</SectionTitle>
+            <SelectDropdown
+              label="How long did you work together?"
+              value={newReview.relationship_duration}
+              options={RELATIONSHIP_DURATIONS}
+              onChange={(value) => setNewReview({ ...newReview, relationship_duration: value })}
+            />
+          </div>
+        )}
+
+        {/* STEP 3 -- Ratings */}
+        {step === 3 && (
+          <div className="flex flex-col gap-[18px] p-[16px] border border-BorderColor-15 rounded-[8px]">
+            <div className="flex flex-col gap-[12px]">
+              <SectionTitle
+                right={
+                  categoryAverage() > 0 && (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-LinkedInBlue bg-[#EAF1FB] px-[8px] py-[2px] rounded-full">
+                      {categoryAverage().toFixed(1)} ★
+                    </span>
+                  )
+                }
+              >
+                Rate them on
+              </SectionTitle>
+              <div className="flex flex-col gap-[8px]">
+                {CATEGORY_FIELDS.map((field) => (
+                  <CategoryStarRow
+                    key={field.key}
+                    label={field.label}
+                    value={Number(newReview.category_ratings?.[field.key]) || 0}
+                    onChange={(value) => setCategoryRating(field.key, value)}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-[12px] pt-[18px] border-t border-BorderColor-15">
+              <SectionTitle>Would you work with this person again?</SectionTitle>
+              <div className="grid grid-cols-2 gap-[10px]">
+                <button
+                  type="button"
+                  onClick={() => setNewReview({ ...newReview, would_work_again: true })}
+                  className={`btn btn-sm !font-normal !shadow-none ${
+                    newReview.would_work_again === true ? "sign-in-btn" : "premium-btn"
+                  }`}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewReview({ ...newReview, would_work_again: false })}
+                  className={`btn btn-sm !font-normal !shadow-none ${
+                    newReview.would_work_again === false ? "sign-in-btn" : "premium-btn"
+                  }`}
+                >
+                  No
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-        {/* structured rating card end */}
+        )}
 
-        <div className="flex flex-col gap-[20px] flex-grow">
-          <div className="flex flex-col gap-[8px]">
-            <span className="text-sm font-semibold text-BlackColor">Your review</span>
-            <textarea
-              id="w3review"
-              name="w3review"
-              rows={6}
-              value={newReview.description}
-              onChange={(e) =>
-                setNewReview({ ...newReview, description: e.target.value })
-              }
-              className="FromInput"
-              placeholder="Describe your experience with this person..."
-            ></textarea>
+        {/* STEP 4 -- Written feedback */}
+        {step === 4 && (
+          <div className="flex flex-col gap-[18px] p-[16px] border border-BorderColor-15 rounded-[8px]">
+            <div className="flex flex-col gap-[8px]">
+              <SectionTitle>Written feedback</SectionTitle>
+              <textarea
+                id="w3review"
+                name="w3review"
+                rows={6}
+                value={newReview.description}
+                onChange={(e) => setNewReview({ ...newReview, description: e.target.value })}
+                className="FromInput"
+                placeholder="Describe your experience with this person..."
+              ></textarea>
+            </div>
+            <div className="flex flex-col gap-[6px] pt-[18px] border-t border-BorderColor-15">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-BlackColor-60">
+                What is one thing this person does exceptionally well?{" "}
+                <span className="normal-case font-normal text-BlackColor-40">(optional)</span>
+              </label>
+              <input
+                type="text"
+                className="FromInput !border !border-BorderColor-15"
+                value={newReview.standout_strength}
+                maxLength={140}
+                onChange={(e) => setNewReview({ ...newReview, standout_strength: e.target.value })}
+                placeholder="e.g. Communicates clearly under pressure"
+              />
+              <div className="text-right text-[11px] text-BlackColor-40">
+                {(newReview.standout_strength || "").length}/140
+              </div>
+            </div>
           </div>
-          <div className="">
-            <button type="submit" className="btn sign-in-btn">
+        )}
+
+        {/* STEP 5 -- Privacy */}
+        {step === 5 && (
+          <div className="flex flex-col gap-[12px] p-[16px] border border-BorderColor-15 rounded-[8px]">
+            <SectionTitle>Privacy</SectionTitle>
+            <div className="flex justify-between items-center relative CheckBoxMain border border-BorderColor-15 rounded-[5px] px-[15px] py-[12px] bg-TextareaBg">
+              <label
+                htmlFor="anonymous"
+                className=" w-[calc(100%-25px)] truncate text-sm text-BlackColor"
+              >
+                Post this review anonymously
+              </label>
+              <input
+                type="checkbox"
+                id="anonymous"
+                name="anonymous"
+                checked={newReview.is_anon === "1"}
+                onChange={(e) =>
+                  setNewReview({
+                    ...newReview,
+                    is_anon: e.target.checked ? "1" : "0",
+                  })
+                }
+                value="Bike"
+                className="custom-Check-box z-[2]"
+              />
+              <div className="CheckBox"></div>
+            </div>
+            <div className="text-[11px] text-BlackColor-40">
+              Your name is hidden from this review if anonymous is on. Your category ratings
+              still count toward the person's reputation either way.
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-[10px]">
+          <button
+            type="button"
+            onClick={handleBack}
+            disabled={step === 1}
+            className="btn premium-btn !font-normal !shadow-none disabled:opacity-40"
+          >
+            Back
+          </button>
+          {step < STEPS.length ? (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="btn sign-in-btn !font-normal !shadow-none"
+            >
+              Next
+            </button>
+          ) : (
+            <button type="submit" className="btn sign-in-btn !font-normal !shadow-none">
               {editIndex !== null ? "UPDATE REVIEW" : "SUBMIT"}
             </button>
-          </div>
+          )}
         </div>
-        </form>
+      </form>
     </>
   );
 }

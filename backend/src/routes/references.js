@@ -2,8 +2,13 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Profile = require('../models/Profile');
 const ReferenceRequest = require('../models/ReferenceRequest');
-const { referenceRequestDTO, referenceResponseDTO } = require('../utils/dto');
-const { RELATIONSHIP_TYPES, RELATIONSHIP_DURATIONS, parseCategoryRatings } = require('../utils/categories');
+const { referenceRequestDTO, referenceResponseDTO, referenceSentDTO } = require('../utils/dto');
+const {
+  RELATIONSHIP_TYPES,
+  RELATIONSHIP_DURATIONS,
+  parseCategoryRatings,
+  averageCategoryRatings,
+} = require('../utils/categories');
 
 const router = express.Router();
 
@@ -136,6 +141,41 @@ router.post('/for_profile', async (req, res) => {
     .sort({ 'response.submitted_at': -1 });
 
   res.status(200).json({ data: requests.map((r) => referenceResponseDTO(r.toObject())) });
+});
+
+// POST /admin/references/sent -- Screen 4 "References": requests the logged-in contact has
+// sent out, both pending and completed, so they can track and remind on them.
+router.post('/sent', async (req, res) => {
+  const { contact_id } = req.body;
+  if (!isValidId(contact_id)) return res.status(400).json({ message: 'contact_id is required.' });
+
+  const requests = await ReferenceRequest.find({ requested_by: contact_id })
+    .populate('recipient_contact_id')
+    .sort({ created_at: -1 });
+
+  res.status(200).json({ data: requests.map((r) => referenceSentDTO(r, averageCategoryRatings)) });
+});
+
+// POST /admin/references/remind -- there's no real email delivery (same as the rest of this
+// app's local-dev flows), so this just bumps last_reminded_at; a real notification channel
+// would hook in here.
+router.post('/remind', async (req, res) => {
+  const { contact_id, request_id } = req.body;
+  if (!isValidId(request_id)) return res.status(400).json({ message: 'A valid request_id is required.' });
+
+  const request = await ReferenceRequest.findById(request_id);
+  if (!request || String(request.requested_by) !== String(contact_id)) {
+    return res.status(403).json({ message: 'You are not authorized to remind on this request.' });
+  }
+  if (request.status !== 'pending') {
+    return res.status(409).json({ message: 'This request has already been resolved.' });
+  }
+
+  request.last_reminded_at = new Date();
+  await request.save();
+  console.log(`[references.remind] request_id=${request_id} reminded at ${request.last_reminded_at.toISOString()}`);
+
+  res.status(200).json({ message: 'Reminder sent.' });
 });
 
 module.exports = router;

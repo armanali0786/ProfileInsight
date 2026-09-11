@@ -18,6 +18,7 @@ import MyReviews from "../components/MyReviews";
 import VerificationRequests from "../components/VerificationRequests";
 import ReferenceRequests from "../components/ReferenceRequests";
 import RecruiterDashboard from "../components/RecruiterDashboard";
+import MyReputation from "../components/MyReputation";
 import PersonalInformation from "../components/PersonalInformation";
 import {
   initDB,
@@ -245,6 +246,7 @@ function SidePanel() {
           <Route path="/verification-requests" element={<VerificationRequests />} />
           <Route path="/reference-requests" element={<ReferenceRequests />} />
           <Route path="/dashboard" element={<RecruiterDashboard />} />
+          <Route path="/my-reputation" element={<MyReputation />} />
           <Route path="/personal-information" element={<PersonalInformation />} />
         </Routes>
       </div>

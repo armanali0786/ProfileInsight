@@ -20,6 +20,31 @@ const isTruthy = (value) => value === '1' || value === 1 || value === true || va
 const MIN_REVIEWS_FOR_AI_SUMMARY = 3;
 const AI_SUMMARY_TTL_MS = 24 * 60 * 60 * 1000; // re-check a summary at most once a day even if the review count hasn't moved
 
+// Phase 4 "My Reputation" privacy control: a claimed profile's owner can restrict who sees
+// reviews about them. The owner always sees everything about their own profile.
+// Known gap: for the 'verified' tier this filters the review list a non-owner sees, but
+// computeExtras()'s aggregate stats (avg rating/count) still run against all reviews in the
+// DB, so the summary numbers can include unverified reviews even though their text is hidden.
+// Fully fixing that means threading a verification filter through computeExtras' aggregation.
+async function applyReviewVisibility(reviews, profileId, viewerContactId) {
+  const profile = await Profile.findOne({ profile_id: profileId });
+  if (!profile || !profile.claimed_by) return { reviews, restricted: false };
+  if (viewerContactId && String(profile.claimed_by) === String(viewerContactId)) {
+    return { reviews, restricted: false };
+  }
+
+  const owner = await Contact.findById(profile.claimed_by).select('review_visibility');
+  const visibility = owner?.review_visibility || 'everyone';
+
+  if (visibility === 'private') {
+    return { reviews: [], restricted: true };
+  }
+  if (visibility === 'verified') {
+    return { reviews: reviews.filter((r) => r.verification_status === 'verified'), restricted: false };
+  }
+  return { reviews, restricted: false };
+}
+
 async function attachReviewerReviewCounts(reviews) {
   const reviewerIds = [...new Set(reviews.map((r) => String(r.reviewer_id?._id || r.reviewer_id)))];
   const counts = await Review.aggregate([
@@ -38,9 +63,19 @@ router.post('/get_reviews', async (req, res) => {
   const { contact_id, profile_id } = req.body;
   if (!profile_id) return res.status(400).json({ message: 'profile_id is required.' });
 
-  const reviews = await Review.find({ profile_id })
+  const allReviews = await Review.find({ profile_id })
     .populate('reviewer_id')
     .sort({ created_at: -1 });
+
+  const { reviews, restricted } = await applyReviewVisibility(allReviews, profile_id, contact_id);
+  if (restricted) {
+    return res.status(200).json({
+      data: [],
+      restricted: true,
+      message: 'This user has made their reviews private.',
+      extras: { profile_avg_rating: 0, profile_total_ratings: 0, show_claim_button: 0, show_code_input: 0 },
+    });
+  }
 
   const comments = await Comment.find({ review_id: { $in: reviews.map((r) => r._id) } })
     .populate('commenter_id');
@@ -479,6 +514,28 @@ router.post('/dashboard', async (req, res) => {
 
   data.sort((a, b) => b.avg_rating - a.avg_rating);
   res.status(200).json({ data });
+});
+
+// POST /admin/reviews/my_reputation -- Screen 6 "My Reputation": the logged-in contact's own
+// reputation snapshot, for whichever LinkedIn profile they've claimed as themselves.
+router.post('/my_reputation', async (req, res) => {
+  const { contact_id } = req.body;
+  if (!isValidId(contact_id)) return res.status(400).json({ message: 'contact_id is required.' });
+
+  const profile = await Profile.findOne({ claimed_by: contact_id });
+  if (!profile) {
+    return res.status(200).json({ data: null, message: 'Claim your LinkedIn profile to see your reputation.' });
+  }
+
+  const extras = await computeExtras(profile.profile_id, contact_id);
+  res.status(200).json({
+    data: {
+      profile_id: profile.profile_id,
+      profile_name: profile.profile_name,
+      profile_image: profile.profile_image,
+      ...extras,
+    },
+  });
 });
 
 module.exports = router;

@@ -17,6 +17,7 @@ function contactDTO(contact) {
     picture: contact.picture,
     profile_image: contact.profile_image,
     account_status: contact.account_status,
+    review_visibility: contact.review_visibility || 'everyone',
   };
 }
 
@@ -147,6 +148,25 @@ function referenceResponseDTO(request) {
   };
 }
 
+function referenceSentDTO(request, averageCategoryRatings) {
+  const recipient =
+    request.recipient_contact_id && request.recipient_contact_id.firstname !== undefined
+      ? request.recipient_contact_id
+      : null;
+  const response = request.response || {};
+
+  return {
+    request_id: String(request._id),
+    recipient_fullname: recipient ? `${recipient.firstname} ${recipient.lastname}`.trim() : request.recipient_name || 'Pending contact',
+    recipient_profile_img: recipient ? recipient.profile_image : null,
+    status: request.status,
+    created_at: request.created_at,
+    last_reminded_at: request.last_reminded_at || null,
+    relationship_type: response.relationship_type || null,
+    rating: averageCategoryRatings(response.category_ratings),
+  };
+}
+
 module.exports = {
   contactDTO,
   reviewDTO,
@@ -155,4 +175,5 @@ module.exports = {
   verificationDTO,
   referenceRequestDTO,
   referenceResponseDTO,
+  referenceSentDTO,
 };

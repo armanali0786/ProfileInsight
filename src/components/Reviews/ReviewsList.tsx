@@ -61,6 +61,7 @@ export default function ReviewsList({
   const [expandedReviewText, setExpandedReviewText] = useState({});
   const [expandedReplyText, setExpandedReplyText] = useState({});
   const [sortOption, setSortOption] = useState("Newest");
+  const [activeFilter, setActiveFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [editReplyIndex, setEditReplyIndex] = useState(null);
 
@@ -404,9 +405,28 @@ export default function ReviewsList({
     }
   };
 
+  /*-------------- Filter Reviews by Tab (All | Verified | Managers | Colleagues) --------------*/
+  const FILTER_TABS = ["All", "Verified", "Managers", "Colleagues"];
+  const filterReviews = (reviews, filter) => {
+    switch (filter) {
+      case "Verified":
+        return reviews.filter((r) => r.verification_status === "verified");
+      case "Managers":
+        return reviews.filter((r) => ["managed_them", "they_managed_me"].includes(r.relationship_type));
+      case "Colleagues":
+        return reviews.filter((r) => r.relationship_type === "worked_together");
+      default:
+        return reviews;
+    }
+  };
+
   const sortedReviews = Array.isArray(linkedInIdReviews)
-    ? sortReviews([...linkedInIdReviews], sortOption)
+    ? filterReviews(sortReviews([...linkedInIdReviews], sortOption), activeFilter)
     : [];
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter, sortOption]);
 
   // const userId = localStorage.getItem("logInUserId");
   const userInfo = localStorage.getItem("LoginUserData");
@@ -529,6 +549,21 @@ export default function ReviewsList({
       }}
       />
       <div className="RetingCardMain">
+        <div className="flex items-center gap-[15px] border-b border-BorderColor-15 pt-15px overflow-x-auto">
+          {FILTER_TABS.map((tab) => (
+            <a
+              key={tab}
+              onClick={() => setActiveFilter(tab)}
+              className={`text-sm pb-[10px] whitespace-nowrap cursor-pointer border-b-2 duration-200 ${
+                activeFilter === tab
+                  ? "text-LinkedInBlue font-semibold border-LinkedInBlue"
+                  : "text-BlackColor-60 font-normal border-transparent"
+              }`}
+            >
+              {tab}
+            </a>
+          ))}
+        </div>
         <div className="flex flex-col gap-3 pt-15px pb-10px">
           <div className=" text-sm text-BlackColor font-light">Sort by</div>
           <div className="grid grid-cols-3 gap-[5px]">

@@ -159,4 +159,22 @@ router.post('/upload_profile_image', async (req, res) => {
   res.status(200).json({ data: contactDTO(contact), message: 'Profile image updated.' });
 });
 
+// POST /admin/api/contacts/update_review_visibility -- Phase 4 "My Reputation" privacy control.
+router.post('/update_review_visibility', async (req, res) => {
+  const { contact_id, review_visibility } = req.body;
+  if (!mongoose.Types.ObjectId.isValid(contact_id)) {
+    return res.status(404).json({ message: 'Contact not found.' });
+  }
+  if (!['everyone', 'verified', 'private'].includes(review_visibility)) {
+    return res.status(400).json({ message: 'A valid review_visibility value is required.' });
+  }
+
+  const contact = await Contact.findByIdAndUpdate(contact_id, { review_visibility }, { new: true });
+  if (!contact) {
+    return res.status(404).json({ message: 'Contact not found.' });
+  }
+
+  res.status(200).json({ data: contactDTO(contact), message: 'Privacy setting updated.' });
+});
+
 module.exports = router;

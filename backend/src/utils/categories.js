@@ -51,4 +51,17 @@ function parseCategoryRatings(raw) {
   return { categories, average: Math.round((sum / count) * 10) / 10 };
 }
 
-module.exports = { CATEGORY_KEYS, RELATIONSHIP_TYPES, RELATIONSHIP_DURATIONS, parseCategoryRatings };
+function averageCategoryRatings(categories) {
+  if (!categories) return null;
+  const values = CATEGORY_KEYS.map((key) => Number(categories[key])).filter((v) => Number.isFinite(v));
+  if (values.length === 0) return null;
+  return Math.round((values.reduce((sum, v) => sum + v, 0) / values.length) * 10) / 10;
+}
+
+module.exports = {
+  CATEGORY_KEYS,
+  RELATIONSHIP_TYPES,
+  RELATIONSHIP_DURATIONS,
+  parseCategoryRatings,
+  averageCategoryRatings,
+};

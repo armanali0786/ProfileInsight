@@ -13,6 +13,12 @@ const contactSchema = new mongoose.Schema(
     picture: { type: String, default: '' },
     profile_image: { type: String, default: null },
     account_status: { type: Number, default: 1 },
+
+    // Who can see reviews about this contact's own claimed profile (Phase 4 "My Reputation").
+    // 'everyone': unchanged, current default behavior. 'verified': non-owners only see reviews
+    // with verification_status 'verified' (unverified ones stay visible to the owner alone).
+    // 'private': only the owner can see the review list/extras for their own profile at all.
+    review_visibility: { type: String, enum: ['everyone', 'verified', 'private'], default: 'everyone' },
   },
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } }
 );

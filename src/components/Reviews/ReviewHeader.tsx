@@ -296,8 +296,17 @@ const ReviewHeader: React.FC<ReviewHeaderProps> = ({
 
         {extraData.reputation && extraData.reputation.total_reviews > 0 && (
           <div className="flex flex-col gap-[10px] mt-[10px] p-[12px] border border-BorderColor-15 rounded-[5px]">
-            <div className="text-sm font-semibold text-BlackColor">Professional Reputation</div>
-            <div className="flex flex-col gap-[6px]">
+            <div className="text-sm font-semibold text-BlackColor text-center">Professional Reputation</div>
+            <div className="flex flex-col items-center gap-[2px] py-[4px]">
+              <div className="text-[34px] font-bold text-BlackColor leading-none">
+                ⭐ {extraData.profile_avg_rating || 0}
+              </div>
+              <div className="text-[11px] text-BlackColor-60">/ 5</div>
+              <div className="text-[11px] text-BlackColor-60 mt-[6px]">
+                {extraData.reputation.total_reviews} reviews · {extraData.reputation.verified_count} verified
+              </div>
+            </div>
+            <div className="flex flex-col gap-[6px] pt-[10px] border-t border-BorderColor-15">
               {CATEGORY_FIELDS.map((field) => {
                 const value = extraData.reputation.category_averages?.[field.key];
                 if (value == null) return null;

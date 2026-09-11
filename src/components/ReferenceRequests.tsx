@@ -22,6 +22,20 @@ type PendingReferenceRequest = {
   created_at: string;
 };
 
+type SentReferenceRequest = {
+  request_id: string;
+  recipient_fullname: string;
+  recipient_profile_img: string | null;
+  status: "pending" | "completed" | "declined";
+  created_at: string;
+  last_reminded_at: string | null;
+  relationship_type: string | null;
+  rating: number | null;
+};
+
+const formatDate = (dateString: string) =>
+  new Date(dateString).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+
 const emptyResponse = () => ({
   category_ratings: defaultCategoryRatings(),
   relationship_type: "worked_together",
@@ -33,18 +47,27 @@ const emptyResponse = () => ({
 
 export default function ReferenceRequests() {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<"to_answer" | "sent">("to_answer");
   const [requests, setRequests] = useState<PendingReferenceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [openRequestId, setOpenRequestId] = useState<string | null>(null);
   const [responses, setResponses] = useState<Record<string, ReturnType<typeof emptyResponse>>>({});
   const [submittingId, setSubmittingId] = useState<string | null>(null);
 
+  const [sentRequests, setSentRequests] = useState<SentReferenceRequest[]>([]);
+  const [loadingSent, setLoadingSent] = useState(true);
+  const [remindingId, setRemindingId] = useState<string | null>(null);
+
+  const getContactId = () => {
+    const userInfo = localStorage.getItem("LoginUserData");
+    if (!userInfo) return null;
+    return JSON.parse(userInfo).contact_id;
+  };
+
   const fetchPendingRequests = async () => {
     try {
-      const userInfo = localStorage.getItem("LoginUserData");
-      if (!userInfo) return;
-      const parsedInfo = JSON.parse(userInfo);
-      const contactId = parsedInfo.contact_id;
+      const contactId = getContactId();
+      if (!contactId) return;
 
       const formData = new FormData();
       formData.append("contact_id", contactId);
@@ -67,9 +90,65 @@ export default function ReferenceRequests() {
     }
   };
 
+  const fetchSentRequests = async () => {
+    try {
+      const contactId = getContactId();
+      if (!contactId) return;
+
+      const formData = new FormData();
+      formData.append("contact_id", contactId);
+      const response = await axios.post(
+        `${API_BASE_URL}/admin/references/sent`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            authtoken: AuthData.token,
+          },
+        }
+      );
+      setSentRequests(response.data.data || []);
+    } catch (error) {
+      console.error("Error fetching sent reference requests:", error);
+      toast.error("Could not load sent requests.");
+    } finally {
+      setLoadingSent(false);
+    }
+  };
+
   useEffect(() => {
     fetchPendingRequests();
+    fetchSentRequests();
   }, []);
+
+  const remindRequest = async (requestId: string) => {
+    const contactId = getContactId();
+    if (!contactId) return;
+    setRemindingId(requestId);
+    try {
+      const formData = new FormData();
+      formData.append("contact_id", contactId);
+      formData.append("request_id", requestId);
+      const response = await axios.post(
+        `${API_BASE_URL}/admin/references/remind`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            authtoken: AuthData.token,
+          },
+        }
+      );
+      toast.success(response.data.message);
+      setSentRequests((prev) =>
+        prev.map((r) => (r.request_id === requestId ? { ...r, last_reminded_at: new Date().toISOString() } : r))
+      );
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Something went wrong.");
+    } finally {
+      setRemindingId(null);
+    }
+  };
 
   const toggleOpen = (requestId: string) => {
     setOpenRequestId((prev) => (prev === requestId ? null : requestId));
@@ -152,8 +231,79 @@ export default function ReferenceRequests() {
             <img src={closeIcon} className="h18w18" />
           </button>
         </div>
+        <div className="flex items-center gap-[20px] bg-LinkedInBlue px-[20px] h-[40px]">
+          <button
+            onClick={() => setActiveTab("to_answer")}
+            className={`text-sm duration-200 ${
+              activeTab === "to_answer" ? "text-WhiteColor font-semibold" : "text-WhiteColor/70 hover:text-WhiteColor"
+            }`}
+          >
+            To Answer{requests.length > 0 ? ` (${requests.length})` : ""}
+          </button>
+          <button
+            onClick={() => setActiveTab("sent")}
+            className={`text-sm duration-200 ${
+              activeTab === "sent" ? "text-WhiteColor font-semibold" : "text-WhiteColor/70 hover:text-WhiteColor"
+            }`}
+          >
+            Sent
+          </button>
+        </div>
         <div className="ScrollableContent">
-          {loading ? (
+          {activeTab === "sent" ? (
+            loadingSent ? (
+              <div className="text-center text-sm text-light-blue py-[30px]">Loading...</div>
+            ) : sentRequests.length === 0 ? (
+              <div className="text-center text-sm text-light-blue py-[30px]">
+                You haven't requested any references yet.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-[20px] pt-15px">
+                {["pending", "completed", "declined"].map((statusGroup) => {
+                  const items = sentRequests.filter((r) => r.status === statusGroup);
+                  if (items.length === 0) return null;
+                  return (
+                    <div key={statusGroup} className="flex flex-col gap-[10px]">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-BlackColor-60">
+                        {statusGroup} ({items.length})
+                      </div>
+                      {items.map((item) => (
+                        <div key={item.request_id} className="RetingCard">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold capitalize">{item.recipient_fullname}</span>
+                            {item.status === "completed" && (
+                              <span className="text-[10px] px-[6px] py-[1px] rounded-[4px] bg-[#E7F3EC] text-[#1D7A3E] font-medium">
+                                ✓ Verified
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-BlackColor-60">
+                            <span>
+                              {item.status === "pending"
+                                ? `Requested ${formatDate(item.created_at)}`
+                                : item.rating
+                                ? `⭐ ${item.rating}`
+                                : ""}
+                            </span>
+                            {item.status === "pending" && (
+                              <button
+                                type="button"
+                                disabled={remindingId === item.request_id}
+                                onClick={() => remindRequest(item.request_id)}
+                                className="text-LinkedInBlue font-medium cursor-pointer"
+                              >
+                                {item.last_reminded_at ? "Remind again" : "Remind"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : loading ? (
             <div className="text-center text-sm text-light-blue py-[30px]">Loading...</div>
           ) : requests.length === 0 ? (
             <div className="text-center text-sm text-light-blue py-[30px]">
