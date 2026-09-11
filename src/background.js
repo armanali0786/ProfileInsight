@@ -1,10 +1,54 @@
 
 // src/background.js
+import { API_BASE_URL, AuthData } from "./config";
 
 // This script can be used for handling events in the background
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Chrome Extension Installed!");
 });
+
+// Once-a-day (per profile) sync via the Groq-backed /admin/api/profile/sync endpoint.
+// A service worker can't crawl profiles with no tab open for them, so "refresh every
+// morning" is implemented as: the first time a given profile is viewed after 24h have
+// passed, re-send its current top-card HTML so the backend re-parses and updates it.
+const PROFILE_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+function getProfileIdFromUrl(url) {
+  try {
+    const match = new URL(url).pathname.match(/\/in\/([^/]+)/);
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function maybeSyncProfileWithGroq(userDetails, topCardHtml) {
+  const profileId = userDetails && getProfileIdFromUrl(userDetails.profileUrl);
+  if (!profileId || !topCardHtml) return;
+
+  const storageKey = `profileSyncedAt_${profileId}`;
+  const stored = await chrome.storage.local.get(storageKey);
+  const lastSyncedAt = stored[storageKey];
+  const isStale = !lastSyncedAt || Date.now() - lastSyncedAt > PROFILE_SYNC_INTERVAL_MS;
+  if (!isStale) return;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/api/profile/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", authtoken: AuthData.token },
+      body: JSON.stringify({
+        profile_id: profileId,
+        profile_url: userDetails.profileUrl,
+        html: topCardHtml,
+      }),
+    });
+    if (response.ok) {
+      await chrome.storage.local.set({ [storageKey]: Date.now() });
+    }
+  } catch (error) {
+    console.error("ProfileInsight: Groq profile sync failed", error);
+  }
+}
 
 // Allows users to open the side panel by clicking on the action toolbar icon
 chrome.sidePanel
@@ -80,6 +124,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.userDetails) {
     chrome.storage.local.set({ linkedinUserDetails: request.userDetails }, () => {
     });
+    maybeSyncProfileWithGroq(request.userDetails, request.topCardHtml);
     // Send a response back if needed
     sendResponse({ status: "success", userDetails: request.userDetails });
   }

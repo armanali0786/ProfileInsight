@@ -18,7 +18,14 @@ export const ContentScript = () => {
   // aren't present.
   const getTopCardRoot = (): HTMLElement | null => {
     const verifiedBadge = document.querySelector('a[componentkey^="ProfileVerificationTriggerRef-"]');
-    return (verifiedBadge?.closest('section') as HTMLElement) || (document.querySelector('main') as HTMLElement) || null;
+    return (
+      (verifiedBadge?.closest('section') as HTMLElement) ||
+      (document.querySelector('main') as HTMLElement) ||
+      // Last resort: if even <main> is gone, hand Groq the whole page rather than
+      // nothing -- getTopCardHtml's attribute-stripping keeps this small enough to send.
+      (document.body as HTMLElement) ||
+      null
+    );
   };
 
   // Profiles with a photo frame (#OpenToWork, #Hiring, custom frames, etc.)
@@ -32,6 +39,34 @@ export const ContentScript = () => {
     (document.querySelector('.pv-top-card__non-self-photo-wrapper img') as HTMLImageElement) ||
     (document.querySelector('.pv-top-card__photo-wrapper img') as HTMLImageElement) ||
     null;
+
+  // Attributes worth keeping when stripping a cloned subtree down for Groq: these carry
+  // actual meaning (image URLs, link targets, accessible names) and, unlike LinkedIn's
+  // hashed CSS classes, aren't rewritten on every deploy -- breaking them would break
+  // screen readers, not just styling. Everything else (class, id, style, data-*, ...) is noise.
+  const ATTRS_TO_KEEP = new Set(['src', 'srcset', 'href', 'alt', 'aria-label', 'title']);
+
+  const stripNoisyAttributes = (root: HTMLElement) => {
+    root.querySelectorAll('*').forEach((el) => {
+      [...el.attributes].forEach((attr) => {
+        if (!ATTRS_TO_KEEP.has(attr.name)) el.removeAttribute(attr.name);
+      });
+    });
+  };
+
+  // Snapshot of a page subtree's HTML, sent to the backend so Groq can parse it into
+  // structured fields server-side -- more resilient to LinkedIn's regenerated CSS classes
+  // than the selector chains above. Stripping presentational attributes/noise elements
+  // shrinks the payload enough that we can afford to send a much wider net (up to the
+  // whole page) instead of betting everything on one narrow selector staying stable.
+  const getTopCardHtml = (topCard: HTMLElement | null): string => {
+    const root = topCard || (document.querySelector('main') as HTMLElement | null) || document.body;
+    if (!root) return '';
+    const clone = root.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('script, style, noscript, svg, iframe').forEach((el) => el.remove());
+    stripNoisyAttributes(clone);
+    return clone.outerHTML.slice(0, 40000);
+  };
 
   const getBestProfilePicUrl = (img: HTMLImageElement): string => {
     if (!img.srcset) return img.src;
@@ -76,7 +111,8 @@ export const ContentScript = () => {
     if (profileUrl) userDetails.profileUrl = profileUrl;
 
     if (Object.keys(userDetails).length > 0) {
-      chrome.runtime.sendMessage({ userDetails: userDetails });
+      const topCardHtml = getTopCardHtml(topCard);
+      chrome.runtime.sendMessage({ userDetails: userDetails, topCardHtml });
     }
   };
 

@@ -10,6 +10,7 @@ const { authToken } = require('./src/middleware/authToken');
 const contactsRouter = require('./src/routes/contacts');
 const reviewsRouter = require('./src/routes/reviews');
 const commentsRouter = require('./src/routes/comments');
+const profileRouter = require('./src/routes/profile');
 const devRouter = require('./src/routes/dev');
 
 const app = express();
@@ -49,6 +50,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/admin/api/contacts', authToken, contactsRouter);
+app.use('/admin/api/profile', authToken, profileRouter);
 app.use('/admin/reviews/comments', authToken, commentsRouter);
 app.use('/admin/reviews', authToken, reviewsRouter);
 

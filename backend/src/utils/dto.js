@@ -74,4 +74,16 @@ function commentDTO(comment, viewerContactId) {
   };
 }
 
-module.exports = { contactDTO, reviewDTO, commentDTO };
+function profileDTO(profile) {
+  return {
+    profile_id: profile.profile_id,
+    profile_name: profile.profile_name,
+    headline: profile.headline,
+    location: profile.location,
+    profile_image: profile.profile_image,
+    claimed_by: profile.claimed_by ? String(profile.claimed_by) : null,
+    last_synced_at: profile.last_synced_at,
+  };
+}
+
+module.exports = { contactDTO, reviewDTO, commentDTO, profileDTO };
