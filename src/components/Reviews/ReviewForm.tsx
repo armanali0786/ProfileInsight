@@ -1,26 +1,91 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { addReview, updateReview } from "../../indexedDB";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { AuthData, API_BASE_URL } from "../../config";
 import { useNavigate } from "react-router-dom";
+import DownArrorIcon from "../../assets/images/down-arror.png";
 import {
   CATEGORY_FIELDS,
   RELATIONSHIP_TYPES,
   RELATIONSHIP_DURATIONS,
 } from "../../constants/reputation";
 
+// Native <select> popups don't reliably open inside a Chrome extension side panel,
+// so this mirrors the app's existing custom-dropdown pattern (.Dropdown/.DropdownItems,
+// used elsewhere for the review action menu) instead of relying on the browser's own popup.
+function SelectDropdown({ label, value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const selected = options.find((item) => item.value === value);
+
+  return (
+    <div className="flex flex-col gap-[6px] min-w-0">
+      <label className="text-[11px] font-medium uppercase tracking-wide text-BlackColor-60">
+        {label}
+      </label>
+      <div className="DropDownMain" ref={containerRef}>
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          className={`bg-TextareaBg rounded-[5px] py-[10px] px-[15px] w-full min-w-0 max-w-full flex items-center justify-between gap-2 text-left text-base font-light border duration-200 ${
+            open
+              ? "border-LinkedInBlue"
+              : "border-transparent hover:border-BorderColor-15"
+          }`}
+        >
+          <span className="truncate text-BlackColor">{selected ? selected.label : "Select"}</span>
+          <img
+            src={DownArrorIcon}
+            className={`h-[10px] w-[10px] shrink-0 duration-300 ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+        {open && (
+          <ul className="Dropdown shadow-md !left-0 !right-auto !w-full !min-w-0 max-h-[220px] overflow-y-auto">
+            {options.map((item) => (
+              <li key={item.value} className="DropdownItems">
+                <a
+                  onClick={() => {
+                    onChange(item.value);
+                    setOpen(false);
+                  }}
+                >
+                  <div className={item.value === value ? "text-LinkedInBlue font-medium" : ""}>
+                    {item.label}
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CategoryStarRow({ label, value, onChange }) {
   return (
     <div className="flex items-center justify-between gap-2">
       <span className="text-sm text-BlackColor flex-1">{label}</span>
-      <div className="flex items-center gap-[6px]">
+      <div className="flex items-center gap-[4px]">
         {Array.from({ length: 5 }, (_, index) => (
           <button
             key={index}
             type="button"
             onClick={() => onChange(index + 1)}
-            className="outline-none"
+            className="outline-none duration-150 hover:scale-110"
             aria-label={`${label}: ${index + 1} star`}
           >
             <svg width="20" height="20" viewBox="0 0 41 41" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -36,6 +101,18 @@ function CategoryStarRow({ label, value, onChange }) {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function SectionTitle({ children, right = null }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-[8px]">
+        <span className="w-[3px] h-[14px] rounded-full bg-LinkedInBlue" />
+        <span className="text-sm font-semibold text-BlackColor">{children}</span>
+      </div>
+      {right}
     </div>
   );
 }
@@ -321,14 +398,14 @@ export default function ReviewForm({
           duration: 3000,
         }}
       />
-         <form className=" pt-30px pb-10px flex flex-col gap-20px" onSubmit={handleSubmitReview}>
+         <form className=" pt-20px pb-10px flex flex-col gap-[15px]" onSubmit={handleSubmitReview}>
         {/* label check start  */}
-        <div className="flex justify-between items-center relative CheckBoxMain">
+        <div className="flex justify-between items-center relative CheckBoxMain border border-BorderColor-15 rounded-[5px] px-[15px] py-[12px] bg-TextareaBg">
           <label
             htmlFor="anonymous"
-            className=" w-[calc(100%-25px)] truncate text-base"
+            className=" w-[calc(100%-25px)] truncate text-sm text-BlackColor"
           >
-            write a review as a anonymous
+            Post this review anonymously
           </label>
           <input
             type="checkbox"
@@ -349,60 +426,56 @@ export default function ReviewForm({
         {/* label check end  */}
 
         {/* structured rating card start */}
-        <div className="flex flex-col gap-[15px] p-[12px] border border-BorderColor-15 rounded-[5px]">
+        <div className="flex flex-col gap-[18px] p-[16px] border border-BorderColor-15 rounded-[8px]">
           {/* relationship section start */}
-          <div className="flex flex-col gap-[10px]">
-            <div className="text-sm font-semibold text-BlackColor">Your relationship</div>
-            <div className="grid grid-cols-2 gap-[10px]">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-BlackColor-60">How do you know this person?</label>
-                <select
-                  className="FromInput !border !border-BorderColor-15"
-                  value={newReview.relationship_type}
-                  onChange={(e) => setNewReview({ ...newReview, relationship_type: e.target.value })}
-                >
-                  {RELATIONSHIP_TYPES.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-BlackColor-60">How long did you work together?</label>
-                <select
-                  className="FromInput !border !border-BorderColor-15"
-                  value={newReview.relationship_duration}
-                  onChange={(e) => setNewReview({ ...newReview, relationship_duration: e.target.value })}
-                >
-                  {RELATIONSHIP_DURATIONS.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <div className="flex flex-col gap-[12px]">
+            <SectionTitle>Your relationship</SectionTitle>
+            <div className="flex flex-col gap-[12px]">
+              <SelectDropdown
+                label="How do you know this person?"
+                value={newReview.relationship_type}
+                options={RELATIONSHIP_TYPES}
+                onChange={(value) => setNewReview({ ...newReview, relationship_type: value })}
+              />
+              <SelectDropdown
+                label="How long did you work together?"
+                value={newReview.relationship_duration}
+                options={RELATIONSHIP_DURATIONS}
+                onChange={(value) => setNewReview({ ...newReview, relationship_duration: value })}
+              />
             </div>
           </div>
           {/* relationship section end */}
 
           {/* category ratings section start */}
-          <div className="flex flex-col gap-[10px] pt-[15px] border-t border-BorderColor-15">
-            <div className="text-sm font-semibold text-BlackColor">Rate them on</div>
-            {CATEGORY_FIELDS.map((field) => (
-              <CategoryStarRow
-                key={field.key}
-                label={field.label}
-                value={Number(newReview.category_ratings?.[field.key]) || 0}
-                onChange={(value) => setCategoryRating(field.key, value)}
-              />
-            ))}
+          <div className="flex flex-col gap-[12px] pt-[18px] border-t border-BorderColor-15">
+            <SectionTitle
+              right={
+                categoryAverage() > 0 && (
+                  <span className="flex items-center gap-1 text-xs font-semibold text-LinkedInBlue bg-LinkedInBlue-tint px-[8px] py-[2px] rounded-full">
+                    {categoryAverage().toFixed(1)} ★
+                  </span>
+                )
+              }
+            >
+              Rate them on
+            </SectionTitle>
+            <div className="flex flex-col gap-[8px]">
+              {CATEGORY_FIELDS.map((field) => (
+                <CategoryStarRow
+                  key={field.key}
+                  label={field.label}
+                  value={Number(newReview.category_ratings?.[field.key]) || 0}
+                  onChange={(value) => setCategoryRating(field.key, value)}
+                />
+              ))}
+            </div>
           </div>
           {/* category ratings section end */}
 
           {/* would work again start */}
-          <div className="flex flex-col gap-[10px] pt-[15px] border-t border-BorderColor-15">
-            <div className="text-sm font-semibold text-BlackColor">Would you work with this person again?</div>
+          <div className="flex flex-col gap-[12px] pt-[18px] border-t border-BorderColor-15">
+            <SectionTitle>Would you work with this person again?</SectionTitle>
             <div className="grid grid-cols-2 gap-[10px]">
               <button
                 type="button"
@@ -426,9 +499,10 @@ export default function ReviewForm({
           </div>
           {/* would work again end */}
 
-          <div className="flex flex-col gap-1 pt-[15px] border-t border-BorderColor-15">
-            <label className="text-xs text-BlackColor-60">
-              What is one thing this person does exceptionally well? (optional)
+          <div className="flex flex-col gap-[6px] pt-[18px] border-t border-BorderColor-15">
+            <label className="text-[11px] font-medium uppercase tracking-wide text-BlackColor-60">
+              What is one thing this person does exceptionally well?{" "}
+              <span className="normal-case font-normal text-BlackColor-40">(optional)</span>
             </label>
             <input
               type="text"
@@ -438,22 +512,28 @@ export default function ReviewForm({
               onChange={(e) => setNewReview({ ...newReview, standout_strength: e.target.value })}
               placeholder="e.g. Communicates clearly under pressure"
             />
+            <div className="text-right text-[11px] text-BlackColor-40">
+              {(newReview.standout_strength || "").length}/140
+            </div>
           </div>
         </div>
         {/* structured rating card end */}
 
-        <div className=" flex flex-col gap-30px flex-grow">
-          <textarea
-            id="w3review"
-            name="w3review"
-            rows={6}
-            value={newReview.description}
-            onChange={(e) =>
-              setNewReview({ ...newReview, description: e.target.value })
-            }
-            className="FromInput"
-            placeholder="Describe your experience with the agent..."
-          ></textarea>
+        <div className="flex flex-col gap-[20px] flex-grow">
+          <div className="flex flex-col gap-[8px]">
+            <span className="text-sm font-semibold text-BlackColor">Your review</span>
+            <textarea
+              id="w3review"
+              name="w3review"
+              rows={6}
+              value={newReview.description}
+              onChange={(e) =>
+                setNewReview({ ...newReview, description: e.target.value })
+              }
+              className="FromInput"
+              placeholder="Describe your experience with this person..."
+            ></textarea>
+          </div>
           <div className="">
             <button type="submit" className="btn sign-in-btn">
               {editIndex !== null ? "UPDATE REVIEW" : "SUBMIT"}
