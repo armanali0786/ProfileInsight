@@ -1,12 +1,24 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import OneRetingStar from "../../assets/images/one-star.png";
 import HalfRetingStar from "../../assets/images/half-star.png";
 import EmptyRatingStar from "../../assets/images/empty-star.png";
 import UserProfileImage from "../../assets/images/user-profile-image.png";
 import Review from "../Review";
 import { CATEGORY_FIELDS } from "../../constants/reputation";
+import { AuthData, API_BASE_URL } from "../../config";
+
+type AiReputationSummary = {
+  summary: string;
+  strengths: string[];
+  concerns: string[];
+  confidence: "low" | "medium" | "high";
+  based_on: number;
+  verified_relationships: number;
+};
 
 interface ReviewHeaderProps {
+  profileId: string;
   linkedInUserDetails: {
     name: string;
     location: string;
@@ -39,6 +51,7 @@ interface ReviewHeaderProps {
 }
 
 const ReviewHeader: React.FC<ReviewHeaderProps> = ({
+  profileId,
   linkedInUserDetails,
   handleShowAddReview,
   hideReviewBtn,
@@ -58,6 +71,41 @@ const ReviewHeader: React.FC<ReviewHeaderProps> = ({
       setClaimProfileInputCode(value);
     }
   };
+
+  /*------------------  AI Reputation Summary (Phase 2)  ----------------------*/
+  const [aiSummary, setAiSummary] = useState<AiReputationSummary | null>(null);
+  const [loadingAiSummary, setLoadingAiSummary] = useState(false);
+  const totalReviews = extraData?.reputation?.total_reviews || 0;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!profileId || totalReviews < 3) {
+      setAiSummary(null);
+      return;
+    }
+    setLoadingAiSummary(true);
+    const formData = new FormData();
+    formData.append("profile_id", profileId);
+    axios
+      .post(`${API_BASE_URL}/admin/reviews/reputation_summary`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          authtoken: AuthData.token,
+        },
+      })
+      .then((response) => {
+        if (!cancelled) setAiSummary(response.data.data || null);
+      })
+      .catch(() => {
+        if (!cancelled) setAiSummary(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAiSummary(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId, totalReviews]);
   return (
     <>
       {/* ReviewHeaderMain start */}
@@ -212,6 +260,57 @@ const ReviewHeader: React.FC<ReviewHeaderProps> = ({
                 </div>
               </div>
             )}
+            {(aiSummary || loadingAiSummary) && (
+              <div className="flex flex-col gap-[8px] pt-[10px] border-t border-BorderColor-15">
+                <div className="text-[11px] font-semibold text-BlackColor-60 uppercase tracking-wide">
+                  AI Summary
+                </div>
+                {loadingAiSummary && !aiSummary ? (
+                  <div className="text-[11px] text-BlackColor-40">Generating summary...</div>
+                ) : (
+                  aiSummary && (
+                    <>
+                      <div className="text-[12px] text-BlackColor leading-[1.4]">{aiSummary.summary}</div>
+                      {aiSummary.strengths.length > 0 && (
+                        <div className="flex flex-col gap-[4px]">
+                          <span className="text-[10px] text-BlackColor-60">Common strengths</span>
+                          <div className="flex flex-wrap gap-[6px]">
+                            {aiSummary.strengths.map((strength, index) => (
+                              <span
+                                key={index}
+                                className="text-[10px] px-[8px] py-[3px] rounded-full bg-[#EAF1FB] text-LinkedInBlue"
+                              >
+                                {strength}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {aiSummary.concerns.length > 0 && (
+                        <div className="flex flex-col gap-[4px]">
+                          <span className="text-[10px] text-BlackColor-60">Potential concerns</span>
+                          <div className="flex flex-wrap gap-[6px]">
+                            {aiSummary.concerns.map((concern, index) => (
+                              <span
+                                key={index}
+                                className="text-[10px] px-[8px] py-[3px] rounded-full bg-[#FDF3E7] text-[#8A5A00]"
+                              >
+                                {concern}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="text-[10px] text-BlackColor-40">
+                        Confidence: {aiSummary.confidence?.toUpperCase()} · Based on {aiSummary.based_on} reviews (
+                        {aiSummary.verified_relationships} verified)
+                      </div>
+                    </>
+                  )
+                )}
+              </div>
+            )}
+
             <div className="flex items-center justify-between text-[11px] text-BlackColor-60 pt-[4px] border-t border-BorderColor-15">
               <span>🟢 {extraData.reputation.verified_count} verified</span>
               <span>⚪ {extraData.reputation.unverified_count} unverified</span>

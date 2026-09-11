@@ -75,4 +75,70 @@ async function extractProfileFromHtml(html) {
   };
 }
 
-module.exports = { extractProfileFromHtml };
+const MAX_SUMMARY_INPUT_LENGTH = 12000;
+
+// Compresses a profile's reviews into an objective reputation summary -- the "AI summary"
+// from the product brief is deliberately scoped to summarization only (never the source of
+// truth for ratings/confidence, which are computed deterministically in extras.js).
+async function summarizeReputation(reviews) {
+  if (!process.env.GROQ_API_KEY) {
+    throw new Error('GROQ_API_KEY is not configured.');
+  }
+
+  const reviewText = reviews
+    .map((review, index) => {
+      const tag = review.relationship_type ? ` (${review.relationship_type.replace(/_/g, ' ')})` : '';
+      const standout = review.standout_strength ? ` | Stands out for: ${review.standout_strength}` : '';
+      return `Review ${index + 1}${tag}: ${review.description || ''}${standout}`;
+    })
+    .join('\n')
+    .slice(0, MAX_SUMMARY_INPUT_LENGTH);
+
+  if (!reviewText.trim()) {
+    return { summary: '', strengths: [], concerns: [] };
+  }
+
+  const { data } = await axios.post(
+    GROQ_API_URL,
+    {
+      model: DEFAULT_MODEL,
+      temperature: 0,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You summarize peer feedback about a working professional into an objective reputation ' +
+            'summary for a recruiter or hiring manager. Return ONLY a JSON object with these exact keys: ' +
+            '"summary" (string, 1-2 neutral sentences describing the overall pattern across the reviews), ' +
+            '"strengths" (array of up to 5 short phrases naming traits that come up repeatedly and ' +
+            'positively -- omit anything mentioned by only one review), "concerns" (array of up to 3 short ' +
+            'phrases naming recurring constructive or critical notes -- an empty array if none recur). ' +
+            'Base every claim strictly on the text given, never invent traits that are not supported by ' +
+            'the reviews, and do not quote or repeat any single review verbatim.',
+        },
+        { role: 'user', content: reviewText },
+      ],
+    },
+    {
+      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
+      timeout: 15000,
+    }
+  );
+
+  const raw = data?.choices?.[0]?.message?.content || '{}';
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = {};
+  }
+
+  return {
+    summary: parsed.summary || '',
+    strengths: Array.isArray(parsed.strengths) ? parsed.strengths.slice(0, 5) : [],
+    concerns: Array.isArray(parsed.concerns) ? parsed.concerns.slice(0, 3) : [],
+  };
+}
+
+module.exports = { extractProfileFromHtml, summarizeReputation };

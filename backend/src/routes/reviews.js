@@ -8,13 +8,16 @@ const ClaimRequest = require('../models/ClaimRequest');
 const Contact = require('../models/Contact');
 const RelationshipVerification = require('../models/RelationshipVerification');
 const { reviewDTO, verificationDTO } = require('../utils/dto');
-const { computeExtras } = require('../utils/extras');
+const { computeExtras, computeSummaryConfidence } = require('../utils/extras');
 const { CATEGORY_KEYS, RELATIONSHIP_TYPES, RELATIONSHIP_DURATIONS } = require('../utils/categories');
+const { summarizeReputation } = require('../utils/groq');
 
 const router = express.Router();
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 const isTruthy = (value) => value === '1' || value === 1 || value === true || value === 'true';
+const MIN_REVIEWS_FOR_AI_SUMMARY = 3;
+const AI_SUMMARY_TTL_MS = 24 * 60 * 60 * 1000; // re-check a summary at most once a day even if the review count hasn't moved
 
 // Parses the `category_ratings` FormData field (a JSON string of {communication: 4, ...})
 // into a clamped {categories, average} pair. Returns null if nothing usable was sent, so
@@ -373,6 +376,73 @@ router.post('/verifications/respond', async (req, res) => {
   res.status(200).json({
     message: action === 'confirm' ? 'Relationship confirmed.' : 'Verification request denied.',
     data: { verification_id: String(verification._id), status: verification.status },
+  });
+});
+
+// POST /admin/reviews/reputation_summary -- an AI-compressed reputation summary for a profile
+// (Phase 2). Cached on Profile and only regenerated when the review count changes or the
+// cache goes stale, so this never triggers a Groq call on every page view. Confidence is
+// computed deterministically (see computeSummaryConfidence), not left to the LLM to guess.
+router.post('/reputation_summary', async (req, res) => {
+  const { profile_id } = req.body;
+  if (!profile_id) return res.status(400).json({ message: 'profile_id is required.' });
+
+  const reviews = await Review.find({ profile_id })
+    .select('description standout_strength relationship_type verification_status')
+    .lean();
+
+  const totalReviews = reviews.length;
+  if (totalReviews < MIN_REVIEWS_FOR_AI_SUMMARY) {
+    return res.status(200).json({ data: null, message: 'Not enough reviews yet for an AI summary.' });
+  }
+
+  const verifiedCount = reviews.filter((r) => r.verification_status === 'verified').length;
+  const confidence = computeSummaryConfidence(totalReviews, verifiedCount);
+
+  let profile = await Profile.findOne({ profile_id });
+  const isStale =
+    !profile?.ai_summary ||
+    profile.ai_summary_review_count !== totalReviews ||
+    !profile.ai_summary_generated_at ||
+    Date.now() - new Date(profile.ai_summary_generated_at).getTime() > AI_SUMMARY_TTL_MS;
+
+  if (isStale) {
+    try {
+      const { summary, strengths, concerns } = await summarizeReputation(reviews);
+      profile = await Profile.findOneAndUpdate(
+        { profile_id },
+        {
+          $set: {
+            ai_summary: summary,
+            ai_summary_strengths: strengths,
+            ai_summary_concerns: concerns,
+            ai_summary_confidence: confidence,
+            ai_summary_review_count: totalReviews,
+            ai_summary_generated_at: new Date(),
+          },
+          $setOnInsert: { profile_id },
+        },
+        { upsert: true, new: true }
+      );
+    } catch (err) {
+      console.error('AI reputation summary failed:', err.message);
+      if (!profile?.ai_summary) {
+        return res.status(502).json({ message: 'Failed to generate AI summary.' });
+      }
+      // Serve the last good cached summary rather than fail the request outright.
+    }
+  }
+
+  res.status(200).json({
+    data: {
+      summary: profile.ai_summary,
+      strengths: profile.ai_summary_strengths,
+      concerns: profile.ai_summary_concerns,
+      confidence: profile.ai_summary_confidence || confidence,
+      based_on: totalReviews,
+      verified_relationships: verifiedCount,
+      generated_at: profile.ai_summary_generated_at,
+    },
   });
 });
 

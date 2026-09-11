@@ -634,6 +634,7 @@ export default function ReviewPage({
             <>
               <div className="ScrollableContent border-t border-BorderColor-15 relative">
                 <ReviewHeader
+                  profileId={linkedInUserId}
                   linkedInUserDetails={linkedInUserDetails}
                   handleShowAddReview={handleShowAddReview}
                   hideReviewBtn={hideReviewBtn}

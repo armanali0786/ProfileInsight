@@ -55,4 +55,13 @@ async function computeExtras(profileId, contactId) {
   };
 }
 
-module.exports = { computeExtras };
+// Confidence for the AI reputation summary is deliberately computed here, not guessed by the
+// LLM -- it's just "how much signal backs this up", so it stays trustworthy and explainable.
+function computeSummaryConfidence(totalReviews, verifiedCount) {
+  if (totalReviews < 3) return 'low';
+  const verifiedRatio = totalReviews ? verifiedCount / totalReviews : 0;
+  if (totalReviews >= 8 && verifiedRatio >= 0.4) return 'high';
+  return 'medium';
+}
+
+module.exports = { computeExtras, computeSummaryConfidence };
