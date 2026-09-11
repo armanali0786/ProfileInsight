@@ -1,11 +1,26 @@
 const Review = require('../models/Review');
 const Profile = require('../models/Profile');
 const ClaimRequest = require('../models/ClaimRequest');
+const { CATEGORY_KEYS } = require('./categories');
+
+const round1 = (n) => Math.round(n * 10) / 10;
 
 async function computeExtras(profileId, contactId) {
   const [stats] = await Review.aggregate([
     { $match: { profile_id: profileId } },
-    { $group: { _id: null, avg: { $avg: '$rating' }, total: { $sum: 1 } } },
+    {
+      $group: {
+        _id: null,
+        avg: { $avg: '$rating' },
+        total: { $sum: 1 },
+        would_work_again_yes: { $sum: { $cond: [{ $eq: ['$would_work_again', true] }, 1, 0] } },
+        would_work_again_no: { $sum: { $cond: [{ $eq: ['$would_work_again', false] }, 1, 0] } },
+        verified_count: { $sum: { $cond: [{ $eq: ['$verification_status', 'verified'] }, 1, 0] } },
+        ...Object.fromEntries(
+          CATEGORY_KEYS.map((key) => [`avg_${key}`, { $avg: `$category_ratings.${key}` }])
+        ),
+      },
+    },
   ]);
 
   const profile = await Profile.findOne({ profile_id: profileId });
@@ -13,12 +28,30 @@ async function computeExtras(profileId, contactId) {
     ? await ClaimRequest.findOne({ profile_id: profileId, contact_id: contactId, status: 'pending' })
     : null;
 
+  const totalWouldWorkAgainVotes = stats ? stats.would_work_again_yes + stats.would_work_again_no : 0;
+  const totalReviews = stats ? stats.total : 0;
+  const verifiedCount = stats ? stats.verified_count : 0;
+
   return {
-    profile_avg_rating: stats ? Math.round(stats.avg * 10) / 10 : 0,
-    profile_total_ratings: stats ? stats.total : 0,
+    profile_avg_rating: stats ? round1(stats.avg) : 0,
+    profile_total_ratings: totalReviews,
     show_claim_button: profile && profile.claimed_by ? 0 : 1,
     show_code_input: pendingClaim ? 1 : 0,
     request_id: pendingClaim ? String(pendingClaim._id) : undefined,
+    reputation: {
+      category_averages: Object.fromEntries(
+        CATEGORY_KEYS.map((key) => [
+          key,
+          stats && stats[`avg_${key}`] != null ? round1(stats[`avg_${key}`]) : null,
+        ])
+      ),
+      would_work_again_pct: totalWouldWorkAgainVotes
+        ? Math.round((stats.would_work_again_yes / totalWouldWorkAgainVotes) * 100)
+        : null,
+      verified_count: verifiedCount,
+      unverified_count: totalReviews - verifiedCount,
+      total_reviews: totalReviews,
+    },
   };
 }
 

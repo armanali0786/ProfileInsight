@@ -6,12 +6,43 @@ const Comment = require('../models/Comment');
 const Profile = require('../models/Profile');
 const ClaimRequest = require('../models/ClaimRequest');
 const Contact = require('../models/Contact');
-const { reviewDTO } = require('../utils/dto');
+const RelationshipVerification = require('../models/RelationshipVerification');
+const { reviewDTO, verificationDTO } = require('../utils/dto');
 const { computeExtras } = require('../utils/extras');
+const { CATEGORY_KEYS, RELATIONSHIP_TYPES, RELATIONSHIP_DURATIONS } = require('../utils/categories');
 
 const router = express.Router();
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
+const isTruthy = (value) => value === '1' || value === 1 || value === true || value === 'true';
+
+// Parses the `category_ratings` FormData field (a JSON string of {communication: 4, ...})
+// into a clamped {categories, average} pair. Returns null if nothing usable was sent, so
+// callers can fall back to the legacy single `rating` field.
+function parseCategoryRatings(raw) {
+  if (!raw) return null;
+  let parsed;
+  try {
+    parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+
+  const categories = {};
+  let sum = 0;
+  let count = 0;
+  for (const key of CATEGORY_KEYS) {
+    const value = Number(parsed[key]);
+    if (Number.isFinite(value) && value >= 1 && value <= 5) {
+      categories[key] = value;
+      sum += value;
+      count += 1;
+    }
+  }
+  if (count === 0) return null;
+  return { categories, average: Math.round((sum / count) * 10) / 10 };
+}
 
 async function attachReviewerReviewCounts(reviews) {
   const reviewerIds = [...new Set(reviews.map((r) => String(r.reviewer_id?._id || r.reviewer_id)))];
@@ -77,7 +108,19 @@ router.post('/my_reviews', async (req, res) => {
 
 // POST /admin/reviews/submit_review
 router.post('/submit_review', async (req, res) => {
-  const { contact_id, profile_id, description, is_anon, rating, profile_name } = req.body;
+  const {
+    contact_id,
+    profile_id,
+    description,
+    is_anon,
+    rating,
+    profile_name,
+    relationship_type,
+    relationship_duration,
+    category_ratings,
+    would_work_again,
+    standout_strength,
+  } = req.body;
 
   if (!isValidId(contact_id)) return res.status(400).json({ message: 'contact_id is required.' });
 
@@ -86,20 +129,42 @@ router.post('/submit_review', async (req, res) => {
     return res.status(409).json({ message: 'You have already reviewed this profile.' });
   }
 
-  await Profile.findOneAndUpdate(
+  const profile = await Profile.findOneAndUpdate(
     { profile_id },
     { $setOnInsert: { profile_name: profile_name || '' } },
-    { upsert: true }
+    { upsert: true, new: true }
   );
+
+  const parsedCategories = parseCategoryRatings(category_ratings);
+  const overallRating = parsedCategories ? parsedCategories.average : Number(rating);
 
   const review = await Review.create({
     profile_id,
     profile_name,
     reviewer_id: contact_id,
     description,
-    rating,
-    is_anon: is_anon === '1' || is_anon === 1 || is_anon === true,
+    rating: overallRating,
+    is_anon: isTruthy(is_anon),
+    category_ratings: parsedCategories ? parsedCategories.categories : undefined,
+    relationship_type: RELATIONSHIP_TYPES.includes(relationship_type) ? relationship_type : 'other',
+    relationship_duration: RELATIONSHIP_DURATIONS.includes(relationship_duration) ? relationship_duration : undefined,
+    would_work_again: would_work_again === undefined ? undefined : isTruthy(would_work_again),
+    standout_strength: standout_strength || '',
   });
+
+  // A claimed profile's owner gets a chance to confirm the reviewer's claimed relationship --
+  // see verifications/pending and verifications/respond below.
+  if (profile.claimed_by && String(profile.claimed_by) !== String(contact_id)) {
+    await RelationshipVerification.create({
+      review_id: review._id,
+      profile_id,
+      reviewee_contact_id: profile.claimed_by,
+      reviewer_id: contact_id,
+      status: 'pending',
+    });
+    review.verification_status = 'pending';
+    await review.save();
+  }
 
   await review.populate('reviewer_id');
   const reviewerCount = await Review.countDocuments({ reviewer_id: contact_id });
@@ -112,7 +177,18 @@ router.post('/submit_review', async (req, res) => {
 
 // POST /admin/reviews/update_review
 router.post('/update_review', async (req, res) => {
-  const { contact_id, review_id, description, rating, is_anon } = req.body;
+  const {
+    contact_id,
+    review_id,
+    description,
+    rating,
+    is_anon,
+    relationship_type,
+    relationship_duration,
+    category_ratings,
+    would_work_again,
+    standout_strength,
+  } = req.body;
 
   if (!isValidId(review_id)) return res.status(404).json({ message: 'Review not found.' });
 
@@ -122,9 +198,16 @@ router.post('/update_review', async (req, res) => {
     return res.status(403).json({ message: 'You are not authorized to edit this review.' });
   }
 
+  const parsedCategories = parseCategoryRatings(category_ratings);
+
   review.description = description ?? review.description;
-  review.rating = rating ?? review.rating;
-  if (is_anon !== undefined) review.is_anon = is_anon === '1' || is_anon === 1 || is_anon === true;
+  review.rating = parsedCategories ? parsedCategories.average : rating ?? review.rating;
+  if (parsedCategories) review.category_ratings = parsedCategories.categories;
+  if (is_anon !== undefined) review.is_anon = isTruthy(is_anon);
+  if (RELATIONSHIP_TYPES.includes(relationship_type)) review.relationship_type = relationship_type;
+  if (RELATIONSHIP_DURATIONS.includes(relationship_duration)) review.relationship_duration = relationship_duration;
+  if (would_work_again !== undefined) review.would_work_again = isTruthy(would_work_again);
+  if (standout_strength !== undefined) review.standout_strength = standout_strength;
   await review.save();
   await review.populate('reviewer_id');
 
@@ -248,6 +331,49 @@ router.post('/confirm_claim_request', async (req, res) => {
   await Profile.findOneAndUpdate({ profile_id: claimRequest.profile_id }, { claimed_by: claimRequest.contact_id });
 
   res.status(200).json({ message: 'Profile claimed successfully.' });
+});
+
+// POST /admin/reviews/verifications/pending -- relationship-confirmation requests waiting
+// on the logged-in contact, i.e. reviews written about a profile they've claimed as their own.
+router.post('/verifications/pending', async (req, res) => {
+  const { contact_id } = req.body;
+  if (!isValidId(contact_id)) return res.status(400).json({ message: 'contact_id is required.' });
+
+  const verifications = await RelationshipVerification.find({ reviewee_contact_id: contact_id, status: 'pending' })
+    .populate({ path: 'review_id', populate: { path: 'reviewer_id' } })
+    .sort({ created_at: -1 });
+
+  const data = verifications.filter((v) => v.review_id).map((v) => verificationDTO(v));
+  res.status(200).json({ data });
+});
+
+// POST /admin/reviews/verifications/respond -- the reviewee confirms or denies that the
+// relationship described in a review actually happened, flipping Review.verification_status.
+router.post('/verifications/respond', async (req, res) => {
+  const { contact_id, verification_id, action } = req.body;
+  if (!isValidId(verification_id) || !['confirm', 'deny'].includes(action)) {
+    return res.status(400).json({ message: 'A valid verification_id and action are required.' });
+  }
+
+  const verification = await RelationshipVerification.findById(verification_id);
+  if (!verification || String(verification.reviewee_contact_id) !== String(contact_id)) {
+    return res.status(403).json({ message: 'You are not authorized to respond to this verification request.' });
+  }
+  if (verification.status !== 'pending') {
+    return res.status(409).json({ message: 'This verification request has already been resolved.' });
+  }
+
+  verification.status = action === 'confirm' ? 'confirmed' : 'denied';
+  await verification.save();
+
+  await Review.findByIdAndUpdate(verification.review_id, {
+    verification_status: action === 'confirm' ? 'verified' : 'unverified',
+  });
+
+  res.status(200).json({
+    message: action === 'confirm' ? 'Relationship confirmed.' : 'Verification request denied.',
+    data: { verification_id: String(verification._id), status: verification.status },
+  });
 });
 
 module.exports = router;

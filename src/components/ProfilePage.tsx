@@ -13,6 +13,7 @@ import FollowingIcon from "../assets/images/following.png";
 import DownArrorIcon from "../assets/images/down-arror.png";
 import PersonalInformationIcon from "../assets/images/personal-information.png";
 import MyReviewIcon from "../assets/images/user-review.png";
+import VerifiedIcon from "../assets/images/verified.png";
 import ReferralIcon from "../assets/images/referral.png";
 import SettingsIcon from "../assets/images/settings.png";
 import {  getLoginUserData } from "../indexedDB";
@@ -227,6 +228,16 @@ export default function ProfilePage({
                             </div>
                             <div className=' flex items-center gap-[10px]'>
                                 <div className='Pill'>{reviewerTotalReviewCount || 0}</div>
+                                <img src={DownArrorIcon} className="h-[15px] w-[15px] -rotate-90"/>
+                            </div>
+                        </a>
+                        <a className='TamsItems' onClick={() => navigate('/verification-requests')}>
+                            <div className='flex items-center gap-2 w-[calc(100%-50px)]'
+                                >
+                                <img src={VerifiedIcon} className="h-[18px] w-[18px]"/>
+                                <div className='text-BlackColor text-base truncate w-[calc(100%-30px)]'>Verification Requests</div>
+                            </div>
+                            <div className=' flex items-center gap-[10px]'>
                                 <img src={DownArrorIcon} className="h-[15px] w-[15px] -rotate-90"/>
                             </div>
                         </a>

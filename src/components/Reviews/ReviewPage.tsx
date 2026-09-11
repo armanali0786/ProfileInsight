@@ -17,6 +17,7 @@ import {
 import ReviewHeader from "./ReviewHeader";
 import AddComment from "./AddComment";
 import CommonLoader from "../Loader/CommonLoader";
+import { defaultCategoryRatings } from "../../constants/reputation";
 
 export default function ReviewPage({
   reviews,
@@ -48,12 +49,26 @@ export default function ReviewPage({
     show_claim_button: number;
     show_code_input: number;
     request_id: number;
+    reputation?: {
+      category_averages: Record<string, number | null>;
+      would_work_again_pct: number | null;
+      verified_count: number;
+      unverified_count: number;
+      total_reviews: number;
+    };
   }>({
     profile_avg_rating: 0, // Default to a number
     profile_total_ratings: 0, // Default to a number
     show_claim_button: 0, // Default to a number
     show_code_input: 0, // Default to a number
     request_id: 0, // Default to an empty string
+    reputation: {
+      category_averages: {},
+      would_work_again_pct: null,
+      verified_count: 0,
+      unverified_count: 0,
+      total_reviews: 0,
+    },
   });
 
   const [linkedInIdReviews, setLinkedInIdReviews] = useState([]);
@@ -68,20 +83,25 @@ export default function ReviewPage({
   const [showAddReply, setShowAddReply] = useState({});
   const [expandedReviewText, setExpandedReviewText] = useState({});
   const [showReviewForm, setShowReviewForm] = useState(false);
-  const [hoveredStar, setHoveredStar] = useState(null);
   const [hideReviewBtn, setHideReviewBtn] = useState(false);
   const [loadingApiResponse, setLoadingApiResponse] = useState(false);
 
   const [newReply, setNewReply] = useState({
     description: "",
   });
-  const [newReview, setNewReview] = useState({
+  const emptyReview = () => ({
     description: "",
     rating: 1,
     linkedInUserId: "",
     reviewId: "",
     is_anon: false,
+    category_ratings: defaultCategoryRatings(),
+    relationship_type: "worked_together",
+    relationship_duration: "6_12m",
+    would_work_again: true,
+    standout_strength: "",
   });
+  const [newReview, setNewReview] = useState(emptyReview());
 
   const [searchTerm, setSearchTerm] = useState("");
   const [lastLinkedInUserId, setLastLinkedInUserId] = useState(null);
@@ -114,13 +134,7 @@ export default function ReviewPage({
         if (linkedInUserId !== lastLinkedInUserId) {
           // Reset the form for the new profile
           setShowReviewForm(false);
-          setNewReview({
-            description: "",
-            rating: 1,
-            linkedInUserId: "",
-            reviewId: "",
-            is_anon: false,
-          });
+          setNewReview(emptyReview());
           setEditIndex(null);
         }
         setLastLinkedInUserId(linkedInUserId);
@@ -355,6 +369,7 @@ export default function ReviewPage({
         show_claim_button: extrasData?.show_claim_button || "",
         show_code_input: extrasData?.show_code_input || "",
         request_id: extrasData?.request_id || "",
+        reputation: extrasData?.reputation,
       });
 
       if (response.status == 200) {
@@ -422,13 +437,7 @@ export default function ReviewPage({
     } else {
       // If not reviewed, toggle the review form visibility
       if (showReviewForm && editIndex !== null) {
-        setNewReview({
-          description: "",
-          rating: 1,
-          linkedInUserId: "",
-          reviewId: "",
-          is_anon: false,
-        });
+        setNewReview(emptyReview());
         setEditIndex(null);
       }
       setShowReviewForm(!showReviewForm);
@@ -448,6 +457,14 @@ export default function ReviewPage({
         linkedInUserId: reviewToEdit.profile_id,
         reviewId: reviewToEdit.review_id,
         is_anon: reviewToEdit.is_anon,
+        category_ratings: reviewToEdit.category_ratings || defaultCategoryRatings(),
+        relationship_type: reviewToEdit.relationship_type || "worked_together",
+        relationship_duration: reviewToEdit.relationship_duration || "6_12m",
+        would_work_again:
+          reviewToEdit.would_work_again === null || reviewToEdit.would_work_again === undefined
+            ? true
+            : reviewToEdit.would_work_again,
+        standout_strength: reviewToEdit.standout_strength || "",
       });
 
       setEditIndex(reviews.findIndex((review) => review.review_id == reviewId));
@@ -639,8 +656,6 @@ export default function ReviewPage({
                 ) : showReviewForm ? (
                   <ReviewForm
                     reviews={reviews}
-                    setHoveredStar={setHoveredStar}
-                    hoveredStar={hoveredStar}
                     newReview={newReview}
                     setNewReview={setNewReview}
                     editIndex={editIndex}

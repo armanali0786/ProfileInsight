@@ -43,7 +43,32 @@ function reviewDTO(review, viewerContactId) {
     created_at: review.created_at,
     updated_at: review.updated_at,
     task_name: null,
+    category_ratings: review.category_ratings || null,
+    relationship_type: review.relationship_type || 'other',
+    relationship_duration: review.relationship_duration || null,
+    would_work_again: review.would_work_again === undefined ? null : review.would_work_again,
+    standout_strength: review.standout_strength || '',
+    verification_status: review.verification_status || 'unverified',
     comments: (review.comments || []).map((c) => commentDTO(c, viewerContactId)),
+  };
+}
+
+function verificationDTO(verification) {
+  const review = verification.review_id;
+  const reviewer = review && review.reviewer_id && review.reviewer_id.firstname !== undefined ? review.reviewer_id : null;
+
+  return {
+    verification_id: String(verification._id),
+    review_id: review ? String(review._id) : null,
+    profile_id: verification.profile_id,
+    reviewer_fullname: review && review.is_anon ? 'Anonymous reviewer' : reviewer ? `${reviewer.firstname} ${reviewer.lastname}`.trim() : 'A reviewer',
+    reviewer_profile_img: review && review.is_anon ? null : reviewer ? reviewer.profile_image : null,
+    relationship_type: review ? review.relationship_type : null,
+    relationship_duration: review ? review.relationship_duration : null,
+    rating: review ? review.rating : null,
+    description: review ? review.description : '',
+    status: verification.status,
+    created_at: verification.created_at,
   };
 }
 
@@ -80,10 +105,11 @@ function profileDTO(profile) {
     profile_name: profile.profile_name,
     headline: profile.headline,
     location: profile.location,
+    company: profile.company,
     profile_image: profile.profile_image,
     claimed_by: profile.claimed_by ? String(profile.claimed_by) : null,
     last_synced_at: profile.last_synced_at,
   };
 }
 
-module.exports = { contactDTO, reviewDTO, commentDTO, profileDTO };
+module.exports = { contactDTO, reviewDTO, commentDTO, profileDTO, verificationDTO };

@@ -40,6 +40,7 @@ router.post('/sync', async (req, res) => {
         profile_name: extracted.name || existing?.profile_name || '',
         headline: extracted.headline,
         location: extracted.location,
+        company: extracted.company,
         profile_image: extracted.profile_image,
         last_synced_at: new Date(),
       },

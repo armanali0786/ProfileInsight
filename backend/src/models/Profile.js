@@ -6,6 +6,7 @@ const profileSchema = new mongoose.Schema(
     profile_name: { type: String, default: '' },
     headline: { type: String, default: '' },
     location: { type: String, default: '' },
+    company: { type: String, default: '' },
     profile_image: { type: String, default: '' },
     claimed_by: { type: mongoose.Schema.Types.ObjectId, ref: 'Contact', default: null },
     last_synced_at: { type: Date, default: null },

@@ -21,6 +21,7 @@ import {
 } from "../../indexedDB";
 import axios from "axios";
 import AddComment from "./AddComment";
+import { relationshipTypeLabel, relationshipDurationLabel } from "../../constants/reputation";
 
 export default function ReviewsList({
   reviews,
@@ -136,6 +137,7 @@ export default function ReviewsList({
             show_claim_button: extrasData?.show_claim_button || "",
             show_code_input: extrasData?.show_code_input || "",
             request_id: extrasData?.request_id || "",
+            reputation: extrasData?.reputation,
           })
           deleteReview(selectedReviewId, setLinkedInIdReviews);
           toast.success(response.data.message);
@@ -661,7 +663,34 @@ export default function ReviewsList({
                       {formatDate(review.created_at)}
                     </span>
                   </div>
+                  <div className="flex items-center gap-[6px] flex-wrap">
+                    <span className="text-[10px] px-[6px] py-[1px] rounded-[4px] bg-GrayBg text-BlackColor-60">
+                      {relationshipTypeLabel(review.relationship_type)}
+                      {review.relationship_duration
+                        ? ` · ${relationshipDurationLabel(review.relationship_duration)}`
+                        : ""}
+                    </span>
+                    {review.verification_status === "verified" ? (
+                      <span className="text-[10px] px-[6px] py-[1px] rounded-[4px] bg-[#E7F3EC] text-[#1D7A3E] font-medium">
+                        🟢 Verified relationship
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-[6px] py-[1px] rounded-[4px] bg-GrayBg text-BlackColor-60">
+                        ⚪ Unverified
+                      </span>
+                    )}
+                    {review.would_work_again === true && (
+                      <span className="text-[10px] px-[6px] py-[1px] rounded-[4px] bg-[#EAF1FB] text-LinkedInBlue font-medium">
+                        Would work again
+                      </span>
+                    )}
+                  </div>
                 </div>
+                {review.standout_strength && (
+                  <div className="text-[12px] text-BlackColor-60 italic">
+                    "{review.standout_strength}"
+                  </div>
+                )}
                 <div
                   className={`text-[13px] font-light text-BlackColor relative ${
                     expandedReviewText[review.review_id] ? "" : "line-clamp-3"

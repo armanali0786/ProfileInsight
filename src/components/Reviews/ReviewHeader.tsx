@@ -4,6 +4,7 @@ import HalfRetingStar from "../../assets/images/half-star.png";
 import EmptyRatingStar from "../../assets/images/empty-star.png";
 import UserProfileImage from "../../assets/images/user-profile-image.png";
 import Review from "../Review";
+import { CATEGORY_FIELDS } from "../../constants/reputation";
 
 interface ReviewHeaderProps {
   linkedInUserDetails: {
@@ -27,6 +28,13 @@ interface ReviewHeaderProps {
     show_claim_button: number;
     show_code_input: number;
     request_id: number;
+    reputation?: {
+      category_averages: Record<string, number | null>;
+      would_work_again_pct: number | null;
+      verified_count: number;
+      unverified_count: number;
+      total_reviews: number;
+    };
   };
 }
 
@@ -162,6 +170,55 @@ const ReviewHeader: React.FC<ReviewHeaderProps> = ({
         <div className=" text-BlackColor text-sm">
           {linkedInUserDetails.headline}
         </div>
+
+        {extraData.reputation && extraData.reputation.total_reviews > 0 && (
+          <div className="flex flex-col gap-[10px] mt-[10px] p-[12px] border border-BorderColor-15 rounded-[5px]">
+            <div className="text-sm font-semibold text-BlackColor">Professional Reputation</div>
+            <div className="flex flex-col gap-[6px]">
+              {CATEGORY_FIELDS.map((field) => {
+                const value = extraData.reputation.category_averages?.[field.key];
+                if (value == null) return null;
+                return (
+                  <div key={field.key} className="flex items-center gap-2">
+                    <span className="text-[11px] text-BlackColor-60 w-[130px] shrink-0 truncate">
+                      {field.label}
+                    </span>
+                    <div className="flex-1 h-[6px] bg-BlackColor-15 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-LinkedInBlue rounded-full"
+                        style={{ width: `${(value / 5) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-[11px] text-BlackColor font-medium w-[22px] text-right">
+                      {value}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {extraData.reputation.would_work_again_pct != null && (
+              <div className="flex flex-col gap-[4px]">
+                <div className="flex items-center justify-between text-[11px] text-BlackColor-60">
+                  <span>Would work with again</span>
+                  <span className="font-medium text-BlackColor">
+                    {extraData.reputation.would_work_again_pct}%
+                  </span>
+                </div>
+                <div className="h-[6px] bg-BlackColor-15 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#1D7A3E] rounded-full"
+                    style={{ width: `${extraData.reputation.would_work_again_pct}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-[11px] text-BlackColor-60 pt-[4px] border-t border-BorderColor-15">
+              <span>🟢 {extraData.reputation.verified_count} verified</span>
+              <span>⚪ {extraData.reputation.unverified_count} unverified</span>
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-end">
           {showClaimButton  && (
             <button

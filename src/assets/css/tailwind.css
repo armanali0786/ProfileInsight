@@ -84,7 +84,8 @@
     @apply border border-BorderColor-15 flex items-center gap-[15px] justify-center hover:bg-LinkedInBlue hover:text-WhiteColor hover:border-LinkedInBlue duration-300 text-sm
   }
   input.FromInput,
-  textarea.FromInput{
+  textarea.FromInput,
+  select.FromInput{
     @apply bg-TextareaBg focus:shadow-none focus-visible:shadow-none py-[10px] px-[15px] border-transparent border w-full
     focus:border-transparent focus:border
     focus-visible:border-transparent focus-visible:outline-none
