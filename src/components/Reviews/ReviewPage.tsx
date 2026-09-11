@@ -634,7 +634,7 @@ export default function ReviewPage({
         <>
           {isLinkedIn ? (
             <>
-              <div className="ScrollableContent border-t border-BorderColor-15 relative">
+              <div className="ScrollableContent border-t border-BorderColor-15 relative !flex-none">
                 <ReviewHeader
                   profileId={linkedInUserId}
                   linkedInUserDetails={linkedInUserDetails}
