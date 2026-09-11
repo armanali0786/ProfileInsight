@@ -11,6 +11,8 @@ import EditIcon from "../../assets/images/edit.png";
 import DeleteIcon from "../../assets/images/delete.png";
 import DeleteConfirmation from "../DeleteConfirmation";
 import ReportReviewModal from "../ReportReviewModal";
+import RelationshipGraph from "./RelationshipGraph";
+import RequestReferenceForm from "./RequestReferenceForm";
 import { AuthData, API_BASE_URL } from "../../config";
 import DownArror from "../../assets/images/down-arror.png";
 
@@ -71,6 +73,8 @@ export default function ReviewsList({
   const [showRespondFor, setShowRespondFor] = useState(null);
   const [responseText, setResponseText] = useState("");
   const [respondingReviewIds, setRespondingReviewIds] = useState([]);
+  const [viewMode, setViewMode] = useState("list"); // "list" | "graph"
+  const [showAskNetwork, setShowAskNetwork] = useState(false);
 
   /*-------------- Format Review Date ---------------*/
   const formatDate = (dateString) => {
@@ -648,6 +652,32 @@ export default function ReviewsList({
         onSubmit={handleSubmitReport}
       />
       <div className="RetingCardMain">
+        {linkedInIdReviews.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-10 text-center">
+            <div className="text-sm font-semibold text-BlackColor">No reviews yet</div>
+            <div className="text-xs text-BlackColor-60 max-w-[260px]">
+              Know {profileName || "this person"} professionally? Ask the network -- invite
+              someone who's worked with them to leave a structured reference.
+            </div>
+            {!showAskNetwork ? (
+              <button
+                type="button"
+                className="btn premium-btn btn-sm !font-normal !shadow-none !w-auto"
+                onClick={() => setShowAskNetwork(true)}
+              >
+                Ask the Network
+              </button>
+            ) : (
+              <RequestReferenceForm
+                profileId={linkedInUserId}
+                profileName={profileName}
+                onCancel={() => setShowAskNetwork(false)}
+                onSent={() => setShowAskNetwork(false)}
+              />
+            )}
+          </div>
+        ) : (
+          <>
         <div className="flex items-center gap-[15px] border-b border-BorderColor-15 pt-15px overflow-x-auto">
           {FILTER_TABS.map((tab) => (
             <a
@@ -663,6 +693,24 @@ export default function ReviewsList({
             </a>
           ))}
         </div>
+        <div className="flex items-center justify-end gap-[10px] pt-[10px]">
+          <a
+            onClick={() => setViewMode("list")}
+            className={`text-xs cursor-pointer ${viewMode === "list" ? "text-LinkedInBlue font-semibold" : "text-BlackColor-60"}`}
+          >
+            List
+          </a>
+          <a
+            onClick={() => setViewMode("graph")}
+            className={`text-xs cursor-pointer ${viewMode === "graph" ? "text-LinkedInBlue font-semibold" : "text-BlackColor-60"}`}
+          >
+            Relationship Graph
+          </a>
+        </div>
+        {viewMode === "graph" ? (
+          <RelationshipGraph reviews={sortedReviews} profileName={profileName} />
+        ) : (
+          <>
         <div className="flex flex-col gap-3 pt-15px pb-10px">
           <div className=" text-sm text-BlackColor font-light">Sort by</div>
           <div className="grid grid-cols-3 gap-[5px]">
@@ -1178,6 +1226,10 @@ export default function ReviewsList({
               </ul>
             </nav>
           </div>
+        )}
+        </>
+        )}
+        </>
         )}
       </div>
     </>
