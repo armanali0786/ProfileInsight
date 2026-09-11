@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import toast from "react-hot-toast";
 import OneRetingStar from "../../assets/images/one-star.png";
 import HalfRetingStar from "../../assets/images/half-star.png";
 import EmptyRatingStar from "../../assets/images/empty-star.png";
@@ -72,6 +73,51 @@ const ReviewHeader: React.FC<ReviewHeaderProps> = ({
     }
   };
 
+  /*------------------  Request Reference (Phase 3)  ----------------------*/
+  const [showRequestReferenceForm, setShowRequestReferenceForm] = useState(false);
+  const [recipientProfileUrl, setRecipientProfileUrl] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [submittingReferenceRequest, setSubmittingReferenceRequest] = useState(false);
+
+  const handleRequestReference = async () => {
+    if (!recipientProfileUrl.trim()) {
+      toast.error("Enter the LinkedIn profile URL of the person you're asking.");
+      return;
+    }
+    const userInfo = localStorage.getItem("LoginUserData");
+    if (!userInfo) return;
+    const parsedInfo = JSON.parse(userInfo);
+    const contactId = parsedInfo.contact_id;
+
+    setSubmittingReferenceRequest(true);
+    try {
+      const formData = new FormData();
+      formData.append("contact_id", contactId);
+      formData.append("profile_id", profileId);
+      formData.append("profile_name", linkedInUserDetails.name);
+      formData.append("recipient_profile_url", recipientProfileUrl.trim());
+      formData.append("recipient_name", recipientName.trim());
+      const response = await axios.post(
+        `${API_BASE_URL}/admin/references/request`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            authtoken: AuthData.token,
+          },
+        }
+      );
+      toast.success(response.data.message);
+      setShowRequestReferenceForm(false);
+      setRecipientProfileUrl("");
+      setRecipientName("");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Something went wrong.");
+    } finally {
+      setSubmittingReferenceRequest(false);
+    }
+  };
+
   /*------------------  AI Reputation Summary (Phase 2)  ----------------------*/
   const [aiSummary, setAiSummary] = useState<AiReputationSummary | null>(null);
   const [loadingAiSummary, setLoadingAiSummary] = useState(false);
@@ -106,6 +152,35 @@ const ReviewHeader: React.FC<ReviewHeaderProps> = ({
       cancelled = true;
     };
   }, [profileId, totalReviews]);
+
+  /*------------------  Completed references for this candidate (Phase 3)  ----------------------*/
+  const [references, setReferences] = useState<any[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!profileId) {
+      setReferences([]);
+      return;
+    }
+    const formData = new FormData();
+    formData.append("profile_id", profileId);
+    axios
+      .post(`${API_BASE_URL}/admin/references/for_profile`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          authtoken: AuthData.token,
+        },
+      })
+      .then((response) => {
+        if (!cancelled) setReferences(response.data.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setReferences([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileId]);
   return (
     <>
       {/* ReviewHeaderMain start */}
@@ -318,12 +393,50 @@ const ReviewHeader: React.FC<ReviewHeaderProps> = ({
           </div>
         )}
 
-        <div className="flex justify-end">
+        {references.length > 0 && (
+          <div className="flex flex-col gap-[10px] p-[12px] border border-BorderColor-15 rounded-[5px]">
+            <div className="text-sm font-semibold text-BlackColor">
+              Verified References ({references.length})
+            </div>
+            <div className="flex flex-col gap-[10px]">
+              {references.map((reference) => (
+                <div
+                  key={reference.request_id}
+                  className="flex flex-col gap-[4px] pb-[10px] border-b border-BorderColor-15 last:border-b-0 last:pb-0"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[12px] font-semibold text-BlackColor capitalize">
+                      {reference.respondent_fullname}
+                    </span>
+                    {reference.would_hire_again === true && (
+                      <span className="text-[10px] px-[6px] py-[1px] rounded-[4px] bg-[#EAF1FB] text-LinkedInBlue font-medium">
+                        Would hire again
+                      </span>
+                    )}
+                  </div>
+                  {reference.strengths_note && (
+                    <div className="text-[11px] text-BlackColor-60 italic">
+                      "{reference.strengths_note}"
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-[10px]">
+          <button
+            className="btn premium-btn btn-sm !font-normal !shadow-none !w-auto"
+            onClick={() => setShowRequestReferenceForm((prev) => !prev)}
+          >
+            Request Reference
+          </button>
           {showClaimButton  && (
             <button
               className="btn premium-btn  btn-sm !font-normal !shadow-none !w-auto"
               onClick={handleClaimProfile}
-              disabled={isClaimButtonDisabled}  
+              disabled={isClaimButtonDisabled}
             >
               Claim Profile
             </button>
@@ -352,6 +465,45 @@ const ReviewHeader: React.FC<ReviewHeaderProps> = ({
             </>
           )}
         </div>
+
+        {showRequestReferenceForm && (
+          <div className="w-full flex flex-col gap-[10px] p-[12px] border border-BorderColor-15 rounded-[5px]">
+            <div className="text-xs text-BlackColor-60">
+              Ask someone who already has a ProfileInsight account for a structured reference
+              about {linkedInUserDetails.name || "this person"}. They'll see the request the
+              next time they open the extension.
+            </div>
+            <input
+              type="text"
+              className="FromInput !border !border-BorderColor-15"
+              placeholder="Their LinkedIn profile URL"
+              value={recipientProfileUrl}
+              onChange={(e) => setRecipientProfileUrl(e.target.value)}
+            />
+            <input
+              type="text"
+              className="FromInput !border !border-BorderColor-15"
+              placeholder="Their name (optional)"
+              value={recipientName}
+              onChange={(e) => setRecipientName(e.target.value)}
+            />
+            <div className="flex gap-[10px]">
+              <button
+                className="btn premium-btn btn-sm !font-normal !shadow-none flex-1"
+                onClick={() => setShowRequestReferenceForm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn sign-in-btn btn-sm !font-normal !shadow-none flex-1"
+                onClick={handleRequestReference}
+                disabled={submittingReferenceRequest}
+              >
+                Send Request
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       {/* ReviewHeaderMain end  */}
 

@@ -112,4 +112,47 @@ function profileDTO(profile) {
   };
 }
 
-module.exports = { contactDTO, reviewDTO, commentDTO, profileDTO, verificationDTO };
+function referenceRequestDTO(request) {
+  const requester = request.requested_by && request.requested_by.firstname !== undefined ? request.requested_by : null;
+
+  return {
+    request_id: String(request._id),
+    profile_id: request.profile_id,
+    profile_name: request.profile_name,
+    requested_by_fullname: requester ? `${requester.firstname} ${requester.lastname}`.trim() : 'A ProfileInsight user',
+    status: request.status,
+    created_at: request.created_at,
+  };
+}
+
+function referenceResponseDTO(request) {
+  const recipient =
+    request.recipient_contact_id && request.recipient_contact_id.firstname !== undefined
+      ? request.recipient_contact_id
+      : null;
+  const response = request.response || {};
+
+  return {
+    request_id: String(request._id),
+    profile_id: request.profile_id,
+    respondent_fullname: recipient ? `${recipient.firstname} ${recipient.lastname}`.trim() : 'A verified professional',
+    respondent_profile_img: recipient ? recipient.profile_image : null,
+    category_ratings: response.category_ratings || null,
+    relationship_type: response.relationship_type || null,
+    relationship_duration: response.relationship_duration || null,
+    strengths_note: response.strengths_note || '',
+    next_manager_note: response.next_manager_note || '',
+    would_hire_again: response.would_hire_again === undefined ? null : response.would_hire_again,
+    submitted_at: response.submitted_at,
+  };
+}
+
+module.exports = {
+  contactDTO,
+  reviewDTO,
+  commentDTO,
+  profileDTO,
+  verificationDTO,
+  referenceRequestDTO,
+  referenceResponseDTO,
+};

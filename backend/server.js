@@ -11,6 +11,7 @@ const contactsRouter = require('./src/routes/contacts');
 const reviewsRouter = require('./src/routes/reviews');
 const commentsRouter = require('./src/routes/comments');
 const profileRouter = require('./src/routes/profile');
+const referencesRouter = require('./src/routes/references');
 const devRouter = require('./src/routes/dev');
 
 const app = express();
@@ -53,6 +54,7 @@ app.use('/admin/api/contacts', authToken, contactsRouter);
 app.use('/admin/api/profile', authToken, profileRouter);
 app.use('/admin/reviews/comments', authToken, commentsRouter);
 app.use('/admin/reviews', authToken, reviewsRouter);
+app.use('/admin/references', authToken, referencesRouter);
 
 if (process.env.NODE_ENV !== 'production') {
   app.use('/dev', devRouter);

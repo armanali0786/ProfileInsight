@@ -7,9 +7,10 @@ const Profile = require('../models/Profile');
 const ClaimRequest = require('../models/ClaimRequest');
 const Contact = require('../models/Contact');
 const RelationshipVerification = require('../models/RelationshipVerification');
+const ReferenceRequest = require('../models/ReferenceRequest');
 const { reviewDTO, verificationDTO } = require('../utils/dto');
 const { computeExtras, computeSummaryConfidence } = require('../utils/extras');
-const { CATEGORY_KEYS, RELATIONSHIP_TYPES, RELATIONSHIP_DURATIONS } = require('../utils/categories');
+const { CATEGORY_KEYS, RELATIONSHIP_TYPES, RELATIONSHIP_DURATIONS, parseCategoryRatings } = require('../utils/categories');
 const { summarizeReputation } = require('../utils/groq');
 
 const router = express.Router();
@@ -18,34 +19,6 @@ const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 const isTruthy = (value) => value === '1' || value === 1 || value === true || value === 'true';
 const MIN_REVIEWS_FOR_AI_SUMMARY = 3;
 const AI_SUMMARY_TTL_MS = 24 * 60 * 60 * 1000; // re-check a summary at most once a day even if the review count hasn't moved
-
-// Parses the `category_ratings` FormData field (a JSON string of {communication: 4, ...})
-// into a clamped {categories, average} pair. Returns null if nothing usable was sent, so
-// callers can fall back to the legacy single `rating` field.
-function parseCategoryRatings(raw) {
-  if (!raw) return null;
-  let parsed;
-  try {
-    parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  } catch {
-    return null;
-  }
-  if (!parsed || typeof parsed !== 'object') return null;
-
-  const categories = {};
-  let sum = 0;
-  let count = 0;
-  for (const key of CATEGORY_KEYS) {
-    const value = Number(parsed[key]);
-    if (Number.isFinite(value) && value >= 1 && value <= 5) {
-      categories[key] = value;
-      sum += value;
-      count += 1;
-    }
-  }
-  if (count === 0) return null;
-  return { categories, average: Math.round((sum / count) * 10) / 10 };
-}
 
 async function attachReviewerReviewCounts(reviews) {
   const reviewerIds = [...new Set(reviews.map((r) => String(r.reviewer_id?._id || r.reviewer_id)))];
@@ -444,6 +417,68 @@ router.post('/reputation_summary', async (req, res) => {
       generated_at: profile.ai_summary_generated_at,
     },
   });
+});
+
+// POST /admin/reviews/dashboard -- the recruiter dashboard's candidate list (Phase 3): every
+// profile the logged-in contact has reviewed, with an at-a-glance hiring signal derived from
+// rating + verification, not just a raw star average.
+router.post('/dashboard', async (req, res) => {
+  const { contact_id } = req.body;
+  if (!isValidId(contact_id)) return res.status(400).json({ message: 'contact_id is required.' });
+
+  const myProfileIds = await Review.distinct('profile_id', { reviewer_id: contact_id });
+  if (myProfileIds.length === 0) return res.status(200).json({ data: [] });
+
+  const [stats, referenceCounts, profiles] = await Promise.all([
+    Review.aggregate([
+      { $match: { profile_id: { $in: myProfileIds } } },
+      {
+        $group: {
+          _id: '$profile_id',
+          avg: { $avg: '$rating' },
+          total: { $sum: 1 },
+          verified: { $sum: { $cond: [{ $eq: ['$verification_status', 'verified'] }, 1, 0] } },
+        },
+      },
+    ]),
+    ReferenceRequest.aggregate([
+      { $match: { profile_id: { $in: myProfileIds }, status: 'completed' } },
+      { $group: { _id: '$profile_id', count: { $sum: 1 } } },
+    ]),
+    Profile.find({ profile_id: { $in: myProfileIds } }),
+  ]);
+
+  const statsMap = new Map(stats.map((s) => [s._id, s]));
+  const referenceMap = new Map(referenceCounts.map((r) => [r._id, r.count]));
+  const profileMap = new Map(profiles.map((p) => [p.profile_id, p]));
+
+  const data = myProfileIds.map((profileId) => {
+    const stat = statsMap.get(profileId);
+    const profile = profileMap.get(profileId);
+    const avgRating = stat ? Math.round(stat.avg * 10) / 10 : 0;
+
+    let signal = 'no_data';
+    if (stat) {
+      if (avgRating >= 4.5) signal = 'strong';
+      else if (avgRating >= 3.5) signal = 'good';
+      else signal = 'review';
+    }
+
+    return {
+      profile_id: profileId,
+      profile_name: profile?.profile_name || profileId,
+      profile_image: profile?.profile_image || '',
+      headline: profile?.headline || '',
+      avg_rating: avgRating,
+      total_reviews: stat ? stat.total : 0,
+      verified_count: stat ? stat.verified : 0,
+      reference_count: referenceMap.get(profileId) || 0,
+      signal,
+    };
+  });
+
+  data.sort((a, b) => b.avg_rating - a.avg_rating);
+  res.status(200).json({ data });
 });
 
 module.exports = router;
